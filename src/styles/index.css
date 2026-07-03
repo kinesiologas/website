@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Poppins:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+  --color-background: #090909;
+  --color-surface: #121212;
+  --color-ruby: #a10f2b;
+  --color-ruby-hover: #c1123d;
+  --color-text: #ffffff;
+  --color-muted: #9f9f9f;
+  --color-border: #242424;
+}
+
+@theme {
+  --font-sans: 'Poppins', sans-serif;
+  --font-serif: 'Cormorant Garamond', serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-background);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--color-background);
+  font-family: var(--font-sans);
+  color: var(--color-text);
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--color-ruby);
+  color: var(--color-text);
+}
+
+img {
+  display: block;
+}
+
+:focus-visible {
+  outline-color: var(--color-ruby);
+}
+
+.PhotoView-Slider__Backdrop {
+  background: rgb(9 9 9 / 94%) !important;
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-label="Placeholder horizontal de galeria editorial de Valentina">
+  <rect width="1200" height="900" fill="#090909"/>
+  <rect x="70" y="70" width="1060" height="760" fill="#141414"/>
+  <path d="M70 70h1060L700 830H70Z" fill="#212121"/>
+  <path d="M70 70h380L260 830H70Z" fill="#A10F2B" opacity=".17"/>
+  <rect x="70" y="70" width="1060" height="760" fill="none" stroke="#242424" stroke-width="2"/>
+</svg>

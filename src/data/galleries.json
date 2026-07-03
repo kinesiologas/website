@@ -1,0 +1,65 @@
+[
+  {
+    "id": "gallery-isabella",
+    "modelSlug": "isabella",
+    "images": [
+      {
+        "id": "isabella-01",
+        "src": "images/models/isabella/gallery-01.jpg",
+        "alt": "Retrato editorial vertical de Isabella"
+      },
+      {
+        "id": "isabella-02",
+        "src": "images/models/isabella/gallery-02.jpg",
+        "alt": "Fotografia horizontal editorial de Isabella"
+      },
+      {
+        "id": "isabella-03",
+        "src": "images/models/isabella/gallery-03.jpg",
+        "alt": "Composicion vertical premium de Isabella"
+      }
+    ]
+  },
+  {
+    "id": "gallery-valentina",
+    "modelSlug": "valentina",
+    "images": [
+      {
+        "id": "valentina-01",
+        "src": "images/models/valentina/gallery-01.jpg",
+        "alt": "Retrato editorial vertical de Valentina"
+      },
+      {
+        "id": "valentina-02",
+        "src": "images/models/valentina/gallery-02.jpg",
+        "alt": "Fotografia horizontal editorial de Valentina"
+      },
+      {
+        "id": "valentina-03",
+        "src": "images/models/valentina/gallery-03.jpg",
+        "alt": "Composicion vertical premium de Valentina"
+      }
+    ]
+  },
+  {
+    "id": "gallery-renata",
+    "modelSlug": "renata",
+    "images": [
+      {
+        "id": "renata-01",
+        "src": "images/models/renata/gallery-01.jpg",
+        "alt": "Retrato editorial vertical de Renata"
+      },
+      {
+        "id": "renata-02",
+        "src": "images/models/renata/gallery-02.jpg",
+        "alt": "Fotografia horizontal editorial de Renata"
+      },
+      {
+        "id": "renata-03",
+        "src": "images/models/renata/gallery-03.jpg",
+        "alt": "Composicion vertical premium de Renata"
+      }
+    ]
+  }
+]

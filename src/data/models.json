@@ -1,0 +1,47 @@
+[
+  {
+    "id": "model-001",
+    "slug": "isabella",
+    "name": "Isabella",
+    "city": "Lima",
+    "age": 24,
+    "category": "Editorial",
+    "featured": true,
+    "shortDescription": "Presencia sofisticada, estilo sobrio y una galeria pensada para una experiencia visual elegante.",
+    "description": "Isabella combina una imagen delicada con una estetica editorial de alto contraste. Su perfil esta pensado para destacar fotografia, ciudad y contacto directo sin informacion innecesaria.",
+    "coverImage": "images/models/isabella/cover.jpg",
+    "profileImage": "images/models/isabella/profile.jpg",
+    "whatsappNumber": "51987654321",
+    "instagramUrl": "https://instagram.com/"
+  },
+  {
+    "id": "model-002",
+    "slug": "valentina",
+    "name": "Valentina",
+    "city": "Miraflores",
+    "age": 26,
+    "category": "Glamour",
+    "featured": true,
+    "shortDescription": "Perfil de aire clasico, fotografias amplias y una narrativa visual minimalista.",
+    "description": "Valentina presenta una seleccion limpia y directa, con una composicion premium que prioriza imagenes grandes, ritmo pausado y contacto privado mediante WhatsApp.",
+    "coverImage": "images/models/valentina/cover.jpg",
+    "profileImage": "images/models/valentina/profile.jpg",
+    "whatsappNumber": "51912345678",
+    "instagramUrl": "https://instagram.com/"
+  },
+  {
+    "id": "model-003",
+    "slug": "renata",
+    "name": "Renata",
+    "city": "San Isidro",
+    "age": 25,
+    "category": "Premium",
+    "featured": true,
+    "shortDescription": "Imagen moderna, presencia serena y una galeria de lectura rapida en mobile.",
+    "description": "Renata mantiene un perfil elegante y reservado. La experiencia esta centrada en descubrir su galeria, revisar datos esenciales y abrir contacto sin friccion.",
+    "coverImage": "images/models/renata/cover.jpg",
+    "profileImage": "images/models/renata/profile.jpg",
+    "whatsappNumber": "51955554444",
+    "instagramUrl": "https://instagram.com/"
+  }
+]

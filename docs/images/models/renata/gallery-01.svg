@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1380" role="img" aria-label="Placeholder de galeria editorial de Renata">
+  <rect width="1000" height="1380" fill="#090909"/>
+  <rect x="60" y="60" width="880" height="1260" fill="#151515"/>
+  <path d="M940 1320H60L455 60h485Z" fill="#202020"/>
+  <path d="M660 60h280L805 1320H500Z" fill="#A10F2B" opacity=".17"/>
+  <rect x="60" y="60" width="880" height="1260" fill="none" stroke="#242424" stroke-width="2"/>
+</svg>

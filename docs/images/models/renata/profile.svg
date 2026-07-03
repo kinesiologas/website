@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1250" role="img" aria-label="Placeholder editorial para perfil de Renata">
+  <rect width="1000" height="1250" fill="#090909"/>
+  <rect x="70" y="70" width="860" height="1110" fill="#141414"/>
+  <path d="M930 1180H70L460 70h470Z" fill="#202020"/>
+  <path d="M650 70h280L810 1180H510Z" fill="#A10F2B" opacity=".17"/>
+  <path d="M180 765c140 105 280 130 420 75 140-57 265-12 375 135" fill="none" stroke="#fff" stroke-opacity=".13" stroke-width="12"/>
+  <rect x="70" y="70" width="860" height="1110" fill="none" stroke="#242424" stroke-width="2"/>
+</svg>

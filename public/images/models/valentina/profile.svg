@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1250" role="img" aria-label="Placeholder editorial para perfil de Valentina">
+  <rect width="1000" height="1250" fill="#090909"/>
+  <rect x="70" y="70" width="860" height="1110" fill="#141414"/>
+  <path d="M70 70h860L530 1180H70Z" fill="#202020"/>
+  <path d="M70 70h300L230 1180H70Z" fill="#A10F2B" opacity=".18"/>
+  <path d="M210 880c160-120 295-145 405-75 120 77 235 58 345-57" fill="none" stroke="#fff" stroke-opacity=".13" stroke-width="12"/>
+  <rect x="70" y="70" width="860" height="1110" fill="none" stroke="#242424" stroke-width="2"/>
+</svg>

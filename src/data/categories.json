@@ -1,0 +1,14 @@
+[
+  {
+    "id": "editorial",
+    "label": "Editorial"
+  },
+  {
+    "id": "glamour",
+    "label": "Glamour"
+  },
+  {
+    "id": "premium",
+    "label": "Premium"
+  }
+]
