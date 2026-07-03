@@ -1,6 +1,6 @@
 # Catalogo Premium de Modelos
 
-Catalogo editorial premium construido con React, Vite, Tailwind CSS 4 y datos locales en JSON. Esta version no usa backend; los perfiles, galerias y categorias estan desacoplados mediante servicios para permitir una migracion futura a Supabase sin reescribir la interfaz.
+Catalogo editorial premium construido con React, Vite, Tailwind CSS 4, Supabase y Cloudflare R2. La app consulta Supabase cuando hay credenciales configuradas y conserva los JSON locales como respaldo para desarrollo o despliegues sin backend.
 
 ## Desarrollo local
 
@@ -21,6 +21,28 @@ Abrir:
 ```text
 http://127.0.0.1:5173/
 ```
+
+## Supabase y R2
+
+1. Copiar `.env.example` a `.env`.
+2. Completar:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_R2_PUBLIC_URL=https://media.example.com
+```
+
+3. En Supabase, abrir `SQL Editor` y ejecutar `supabase/schema.sql`.
+4. Subir las imagenes a R2 manteniendo las mismas rutas, por ejemplo:
+
+```text
+images/models/isabella/cover.jpg
+images/models/isabella/profile.jpg
+images/models/isabella/gallery-01.jpg
+```
+
+Si `VITE_R2_PUBLIC_URL` queda vacio, las imagenes se cargan desde `public/images/`. Si se configura, cualquier ruta relativa de las tablas o JSON se resuelve contra R2.
 
 ## Build para GitHub Pages
 
@@ -115,4 +137,4 @@ src/data/galleries.json
 src/data/categories.json
 ```
 
-Los componentes no importan JSON directamente; acceden mediante servicios en `src/services/`.
+Los componentes no importan JSON directamente; acceden mediante servicios en `src/services/`. Esos servicios consultan Supabase primero y usan los JSON locales como respaldo cuando faltan credenciales, tablas o datos.

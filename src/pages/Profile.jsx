@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Instagram, MapPin } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { WhatsAppButton } from '../components/contact/WhatsAppButton.jsx';
@@ -8,7 +9,39 @@ import { getProfileBySlug } from '../services/profileService.js';
 
 export default function Profile() {
   const { slug } = useParams();
-  const profile = getProfileBySlug(slug);
+  const [profile, setProfile] = useState(null);
+  const [gallery, setGallery] = useState({ modelSlug: slug, images: [] });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfileData() {
+      setIsLoading(true);
+
+      const [nextProfile, nextGallery] = await Promise.all([getProfileBySlug(slug), getGalleryByModelSlug(slug)]);
+
+      if (isMounted) {
+        setProfile(nextProfile);
+        setGallery(nextGallery);
+        setIsLoading(false);
+      }
+    }
+
+    loadProfileData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-6 text-sm uppercase tracking-[0.18em] text-[var(--color-muted)]">
+        Cargando perfil...
+      </main>
+    );
+  }
 
   if (!profile) {
     return (
@@ -24,13 +57,11 @@ export default function Profile() {
           Perfil no disponible
         </h1>
         <p className="mt-4 max-w-2xl text-[var(--color-muted)]">
-          El perfil solicitado no existe en los datos locales actuales.
+          El perfil solicitado no existe en los datos actuales.
         </p>
       </main>
     );
   }
-
-  const gallery = getGalleryByModelSlug(profile.slug);
 
   return (
     <main className="min-h-screen">
@@ -66,7 +97,7 @@ export default function Profile() {
               </h1>
               <p className="mt-4 flex items-center gap-2 text-sm text-[#d7d7d7]">
                 <MapPin aria-hidden="true" size={16} />
-                {profile.city} · {profile.age}
+                {profile.city} &middot; {profile.age}
               </p>
             </div>
           </div>

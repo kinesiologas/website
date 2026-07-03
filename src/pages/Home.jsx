@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GalleryGrid } from '../components/gallery/GalleryGrid.jsx';
@@ -7,9 +8,50 @@ import { getGalleryPreviewImages } from '../services/galleryService.js';
 import { getFeaturedProfiles } from '../services/profileService.js';
 
 export default function Home() {
-  const featuredProfiles = getFeaturedProfiles(3);
-  const previewImages = getGalleryPreviewImages(6);
+  const [featuredProfiles, setFeaturedProfiles] = useState([]);
+  const [previewImages, setPreviewImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const heroProfile = featuredProfiles[0];
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHomeData() {
+      const [profiles, images] = await Promise.all([getFeaturedProfiles(3), getGalleryPreviewImages(6)]);
+
+      if (isMounted) {
+        setFeaturedProfiles(profiles);
+        setPreviewImages(images);
+        setIsLoading(false);
+      }
+    }
+
+    loadHomeData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-6 text-sm uppercase tracking-[0.18em] text-[var(--color-muted)]">
+        Cargando catalogo...
+      </main>
+    );
+  }
+
+  if (!heroProfile) {
+    return (
+      <main className="mx-auto min-h-screen max-w-4xl px-5 py-32 md:px-8 md:py-40">
+        <SectionHeader
+          eyebrow="Catalogo"
+          title="Contenido no disponible"
+          description="No hay perfiles publicados para mostrar en este momento."
+        />
+      </main>
+    );
+  }
 
   return (
     <main>

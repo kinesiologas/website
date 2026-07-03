@@ -8,5 +8,8 @@ export default defineConfig({
     outDir: 'docs',
     emptyOutDir: true,
   },
+  optimizeDeps: {
+    entries: ['index.html'],
+  },
   plugins: [react(), tailwindcss()],
 });

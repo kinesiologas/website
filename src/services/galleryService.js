@@ -1,10 +1,16 @@
 import galleries from '../data/galleries.json';
+import { supabase } from '../lib/supabaseClient.js';
 import { resolveAssetUrl } from '../utils/assetUrl.js';
+
+const IMAGE_COLUMNS = ['id', 'model_slug', 'src', 'alt', 'sort_order'].join(', ');
+
+const galleryImagesTable = import.meta.env.VITE_SUPABASE_GALLERY_IMAGES_TABLE || 'gallery_images';
 
 function mapImage(image, modelSlug) {
   return {
-    ...image,
-    modelSlug,
+    id: image.id,
+    alt: image.alt ?? '',
+    modelSlug: modelSlug ?? image.modelSlug ?? image.model_slug,
     src: resolveAssetUrl(image.src),
   };
 }
@@ -16,14 +22,67 @@ function mapGallery(gallery) {
   };
 }
 
-export function getGalleryByModelSlug(modelSlug) {
+function getLocalGalleryByModelSlug(modelSlug) {
   const gallery = galleries.find((item) => item.modelSlug === modelSlug);
 
   return gallery ? mapGallery(gallery) : { modelSlug, images: [] };
 }
 
-export function getGalleryPreviewImages(limit = 6) {
+function getLocalGalleryPreviewImages(limit = 6) {
   return galleries
     .flatMap((gallery) => gallery.images.map((image) => mapImage(image, gallery.modelSlug)))
     .slice(0, limit);
+}
+
+export async function getGalleryByModelSlug(modelSlug) {
+  if (!supabase) {
+    return getLocalGalleryByModelSlug(modelSlug);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(galleryImagesTable)
+      .select(IMAGE_COLUMNS)
+      .eq('model_slug', modelSlug)
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return data?.length
+      ? {
+          modelSlug,
+          images: data.map((image) => mapImage(image, modelSlug)),
+        }
+      : getLocalGalleryByModelSlug(modelSlug);
+  } catch (error) {
+    console.warn(`Supabase gallery "${modelSlug}" unavailable. Using local data.`, error);
+    return getLocalGalleryByModelSlug(modelSlug);
+  }
+}
+
+export async function getGalleryPreviewImages(limit = 6) {
+  if (!supabase) {
+    return getLocalGalleryPreviewImages(limit);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(galleryImagesTable)
+      .select(IMAGE_COLUMNS)
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      throw error;
+    }
+
+    return data?.length ? data.map((image) => mapImage(image)) : getLocalGalleryPreviewImages(limit);
+  } catch (error) {
+    console.warn('Supabase gallery preview unavailable. Using local data.', error);
+    return getLocalGalleryPreviewImages(limit);
+  }
 }

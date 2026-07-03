@@ -30,7 +30,7 @@ export function ModelCard({ profile }) {
               <h3 className="font-serif text-3xl font-semibold text-white">{profile.name}</h3>
               <p className="mt-2 flex items-center gap-2 text-sm text-[var(--color-muted)]">
                 <MapPin aria-hidden="true" size={15} />
-                {profile.city} · {profile.age}
+                {profile.city} &middot; {profile.age}
               </p>
             </div>
             <span className="border border-[var(--color-border)] px-3 py-1 text-xs uppercase tracking-[0.18em] text-[var(--color-muted)]">
