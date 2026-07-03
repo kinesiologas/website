@@ -1,5 +1,6 @@
 import models from '../data/models.json';
 import { supabase } from '../lib/supabaseClient.js';
+import { runSupabaseQuery } from '../lib/supabaseQuery.js';
 import { resolveAssetUrl } from '../utils/assetUrl.js';
 
 const MODEL_COLUMNS = [
@@ -52,11 +53,14 @@ export async function getProfiles() {
   }
 
   try {
-    const { data, error } = await supabase
-      .from(modelsTable)
-      .select(MODEL_COLUMNS)
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('name', { ascending: true });
+    const { data, error } = await runSupabaseQuery(
+      supabase
+        .from(modelsTable)
+        .select(MODEL_COLUMNS)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('name', { ascending: true }),
+      'Supabase profiles',
+    );
 
     if (error) {
       throw error;
@@ -89,11 +93,14 @@ export async function getProfileBySlug(slug) {
   }
 
   try {
-    const { data, error } = await supabase
-      .from(modelsTable)
-      .select(MODEL_COLUMNS)
-      .eq('slug', slug)
-      .maybeSingle();
+    const { data, error } = await runSupabaseQuery(
+      supabase
+        .from(modelsTable)
+        .select(MODEL_COLUMNS)
+        .eq('slug', slug)
+        .maybeSingle(),
+      `Supabase profile "${slug}"`,
+    );
 
     if (error) {
       throw error;

@@ -1,5 +1,6 @@
 import galleries from '../data/galleries.json';
 import { supabase } from '../lib/supabaseClient.js';
+import { runSupabaseQuery } from '../lib/supabaseQuery.js';
 import { resolveAssetUrl } from '../utils/assetUrl.js';
 
 const IMAGE_COLUMNS = ['id', 'model_slug', 'src', 'alt', 'sort_order'].join(', ');
@@ -40,12 +41,15 @@ export async function getGalleryByModelSlug(modelSlug) {
   }
 
   try {
-    const { data, error } = await supabase
-      .from(galleryImagesTable)
-      .select(IMAGE_COLUMNS)
-      .eq('model_slug', modelSlug)
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('id', { ascending: true });
+    const { data, error } = await runSupabaseQuery(
+      supabase
+        .from(galleryImagesTable)
+        .select(IMAGE_COLUMNS)
+        .eq('model_slug', modelSlug)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('id', { ascending: true }),
+      `Supabase gallery "${modelSlug}"`,
+    );
 
     if (error) {
       throw error;
@@ -69,12 +73,15 @@ export async function getGalleryPreviewImages(limit = 6) {
   }
 
   try {
-    const { data, error } = await supabase
-      .from(galleryImagesTable)
-      .select(IMAGE_COLUMNS)
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('id', { ascending: true })
-      .limit(limit);
+    const { data, error } = await runSupabaseQuery(
+      supabase
+        .from(galleryImagesTable)
+        .select(IMAGE_COLUMNS)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('id', { ascending: true })
+        .limit(limit),
+      'Supabase gallery preview',
+    );
 
     if (error) {
       throw error;

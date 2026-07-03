@@ -31,6 +31,7 @@ http://127.0.0.1:5173/
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 VITE_R2_PUBLIC_URL=https://media.example.com
+VITE_SUPABASE_TIMEOUT_MS=4000
 ```
 
 3. En Supabase, abrir `SQL Editor` y ejecutar `supabase/schema.sql`.

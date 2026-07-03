@@ -1,6 +1,6 @@
 import categories from '../data/categories.json';
-
 import { supabase } from '../lib/supabaseClient.js';
+import { runSupabaseQuery } from '../lib/supabaseQuery.js';
 
 const CATEGORY_COLUMNS = ['id', 'label', 'sort_order'].join(', ');
 
@@ -16,11 +16,14 @@ export async function getCategories() {
   }
 
   try {
-    const { data, error } = await supabase
-      .from(categoriesTable)
-      .select(CATEGORY_COLUMNS)
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('label', { ascending: true });
+    const { data, error } = await runSupabaseQuery(
+      supabase
+        .from(categoriesTable)
+        .select(CATEGORY_COLUMNS)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('label', { ascending: true }),
+      'Supabase categories',
+    );
 
     if (error) {
       throw error;
