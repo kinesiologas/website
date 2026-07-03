@@ -35,7 +35,7 @@ export default function Models() {
         <SectionHeader
           eyebrow="Catalogo"
           title="Modelos"
-          description="Perfiles simulados servidos desde JSON local mediante servicios, preparados para migrar luego a Supabase."
+          description="Perfiles cargados desde Supabase con galerias optimizadas en R2."
         />
         <div className="flex flex-wrap gap-2">
           {categories.map((category) => (

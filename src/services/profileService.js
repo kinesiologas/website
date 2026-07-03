@@ -99,7 +99,7 @@ export async function getProfileBySlug(slug) {
       throw error;
     }
 
-    return data ? mapProfile(data) : null;
+    return data ? mapProfile(data) : localProfile;
   } catch (error) {
     console.warn(`Supabase profile "${slug}" unavailable. Using local data.`, error);
     return localProfile;

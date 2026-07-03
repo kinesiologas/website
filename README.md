@@ -64,10 +64,13 @@ Archivos esperados despues del build:
 
 ```text
 docs/index.html
+docs/404.html
 docs/assets/
 docs/CNAME
 docs/.nojekyll
 ```
+
+`docs/404.html` es una copia de `index.html` para que GitHub Pages permita URLs limpias como `/isabella` o `/modelos` sin usar `/#/`.
 
 ## Publicacion manual en GitHub Pages
 

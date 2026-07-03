@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:docs/assets/arrow-right-DhTChey9.js
 import{c as r}from"./index-DKqSQ-Mw.js";/**
+========
+import{c as r}from"./index-DqKjgbJ1.js";/**
+>>>>>>>> 0e176ad (Usar URLs limpias para perfiles):docs/assets/arrow-right-CxNzJW4j.js
  * @license lucide-react v0.468.0 - ISC
  *
  * This source code is licensed under the ISC license.

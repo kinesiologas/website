@@ -91,7 +91,7 @@ export default function Home() {
             <SectionHeader
               eyebrow="Seleccion"
               title="Modelos destacadas"
-              description="Tres perfiles iniciales con datos simulados, listos para reemplazarse por contenido real sin cambiar componentes."
+              description="Perfiles publicados desde Supabase con imagenes servidas desde R2 y respaldo local para desarrollo."
             />
             <Link
               className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-ruby)] transition hover:text-[var(--color-ruby-hover)]"

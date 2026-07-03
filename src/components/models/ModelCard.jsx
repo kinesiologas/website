@@ -13,7 +13,7 @@ export function ModelCard({ profile }) {
     >
       <Link
         className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--color-ruby)]"
-        to={`/perfil/${profile.slug}`}
+        to={`/${profile.slug}`}
         aria-label={`Ver perfil de ${profile.name}`}
       >
         <div className="aspect-[4/5] overflow-hidden bg-[#0f0f0f]">
