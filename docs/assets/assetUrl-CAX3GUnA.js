@@ -1,0 +1,1 @@
+function o(r,e){const t=r.endsWith("/")?r:`${r}/`,n=e.replace(/^\/+/,"");return`${t}${n}`}function i(r){if(!r)return"";if(/^(https?:|data:|blob:)/.test(r))return r;const e=r.replace(/^r2:\/\//,"").replace(/^\/+/,"");return o("https://img.kinesiologass.com",e)}export{i as r};

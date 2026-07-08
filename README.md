@@ -22,7 +22,7 @@ Abrir:
 http://127.0.0.1:5173/
 ```
 
-## Supabase y R2
+## Supabase, Auth y R2
 
 1. Copiar `.env.example` a `.env`.
 2. Completar:
@@ -35,7 +35,30 @@ VITE_SUPABASE_TIMEOUT_MS=4000
 ```
 
 3. En Supabase, abrir `SQL Editor` y ejecutar `supabase/schema.sql`.
-4. Subir las imagenes a R2 manteniendo las mismas rutas, por ejemplo:
+4. En `Authentication > Providers`, activar Email y Google. En Google, configurar los redirect URLs:
+
+```text
+http://127.0.0.1:5173/auth/callback
+https://www.dominio.com/auth/callback
+```
+
+5. Registrar la primera cuenta desde `/login` y convertirla en super administrador desde Supabase:
+
+```sql
+update public.app_profiles
+set role = 'super_admin'
+where email = 'tu-correo@dominio.com';
+```
+
+6. Desplegar la Edge Function de invitaciones y configurar secretos:
+
+```bash
+supabase functions deploy invite-user
+supabase secrets set SITE_URL=https://www.dominio.com
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+7. Subir las imagenes a R2 manteniendo las mismas rutas, por ejemplo:
 
 ```text
 images/models/isabella/cover.jpg
@@ -44,6 +67,37 @@ images/models/isabella/gallery-01.jpg
 ```
 
 Si `VITE_R2_PUBLIC_URL` queda vacio, las imagenes se cargan desde `public/images/`. Si se configura, cualquier ruta relativa de las tablas o JSON se resuelve contra R2.
+
+## Panel administrativo
+
+El panel privado vive en:
+
+```text
+/admin
+```
+
+Rutas principales:
+
+```text
+/login
+/admin/modelos
+/admin/ubicaciones
+/admin/categorias
+/admin/usuarios
+/admin/mi-perfil
+/admin/favoritos
+```
+
+Roles:
+
+```text
+super_admin: acceso total, usuarios e invitaciones
+admin: modelos, ubicaciones y categorias
+model: edicion del modelo vinculado
+user: cuenta y favoritos
+```
+
+El panel guarda rutas o URLs de imagenes. La subida directa a R2 queda preparada como una integracion posterior.
 
 ## Build para GitHub Pages
 

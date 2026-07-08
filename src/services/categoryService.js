@@ -2,7 +2,7 @@ import categories from '../data/categories.json';
 import { supabase } from '../lib/supabaseClient.js';
 import { runSupabaseQuery } from '../lib/supabaseQuery.js';
 
-const CATEGORY_COLUMNS = ['id', 'label', 'sort_order'].join(', ');
+const CATEGORY_COLUMNS = ['id', 'label', 'sort_order', 'active'].join(', ');
 
 const categoriesTable = import.meta.env.VITE_SUPABASE_CATEGORIES_TABLE || 'categories';
 
@@ -29,7 +29,11 @@ export async function getCategories() {
       throw error;
     }
 
-    return data?.length ? data.map(({ id, label }) => ({ id, label })) : getLocalCategories();
+    return data?.length
+      ? data
+          .filter((category) => category.active !== false)
+          .map(({ id, label }) => ({ id, label }))
+      : getLocalCategories();
   } catch (error) {
     console.warn('Supabase categories unavailable. Using local data.', error);
     return getLocalCategories();

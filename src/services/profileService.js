@@ -18,6 +18,7 @@ const MODEL_COLUMNS = [
   'whatsapp_number',
   'instagram_url',
   'sort_order',
+  'status',
 ].join(', ');
 
 const modelsTable = import.meta.env.VITE_SUPABASE_MODELS_TABLE || 'models';
@@ -57,6 +58,7 @@ export async function getProfiles() {
       supabase
         .from(modelsTable)
         .select(MODEL_COLUMNS)
+        .eq('status', 'published')
         .order('sort_order', { ascending: true, nullsFirst: false })
         .order('name', { ascending: true }),
       'Supabase profiles',
@@ -98,6 +100,7 @@ export async function getProfileBySlug(slug) {
         .from(modelsTable)
         .select(MODEL_COLUMNS)
         .eq('slug', slug)
+        .eq('status', 'published')
         .maybeSingle(),
       `Supabase profile "${slug}"`,
     );
