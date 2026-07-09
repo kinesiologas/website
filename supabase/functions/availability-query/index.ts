@@ -539,7 +539,7 @@ async function diagnoseGoogleBusy(
       endTime: rule.end_time,
       slotDurationMinutes: rule.slot_duration_minutes,
       startTime: rule.start_time,
-      timezone,
+      timezone: timeZone,
     },
     storedCalendarEmail: connection.calendar_email ? 'set' : 'empty',
     storedScope: String(connection.scope ?? ''),
