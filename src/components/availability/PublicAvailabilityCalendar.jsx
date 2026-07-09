@@ -248,7 +248,7 @@ export function PublicAvailabilityCalendar({ modelId, modelName, modelSlug }) {
                   >
                     <span className="block font-semibold">{day}</span>
                     <span className="mt-1 block text-[10px] uppercase tracking-[0.08em]">
-                      {isAvailable ? 'Disponible' : 'No disponible'}
+                      {isAvailable ? 'Horarios' : 'Sin horarios'}
                     </span>
                   </button>
                 );
@@ -262,7 +262,7 @@ export function PublicAvailabilityCalendar({ modelId, modelName, modelSlug }) {
           {selectedDate ? (
             <h3 className="mt-3 text-xl font-semibold text-white">{formatDateLabel(selectedDate)}</h3>
           ) : (
-            <h3 className="mt-3 text-xl font-semibold text-white">Elige un dia disponible</h3>
+            <h3 className="mt-3 text-xl font-semibold text-white">Elige un dia con horarios</h3>
           )}
 
           {feedback.message ? (
