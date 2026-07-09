@@ -70,7 +70,7 @@ Luego configurar secretos y desplegar las funciones:
 supabase secrets set GOOGLE_CLIENT_ID=your-google-oauth-client-id
 supabase secrets set GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 supabase functions deploy calendar-connect
-supabase functions deploy calendar-oauth-callback
+supabase functions deploy calendar-oauth-callback --no-verify-jwt
 supabase functions deploy calendar-disconnect
 supabase functions deploy availability-query
 ```
