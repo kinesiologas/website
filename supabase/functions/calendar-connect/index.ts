@@ -8,6 +8,10 @@ const corsHeaders = {
 
 const calendarScope = 'https://www.googleapis.com/auth/calendar.freebusy';
 
+function getCalendarRedirectUri(supabaseUrl: string) {
+  return `${supabaseUrl.replace(/\/$/, '')}/functions/v1/calendar-oauth-callback`;
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     headers: {
@@ -86,7 +90,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: stateError.message }, 500);
   }
 
-  const redirectUri = `${new URL(request.url).origin}/calendar-oauth-callback`;
+  const redirectUri = getCalendarRedirectUri(supabaseUrl);
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.searchParams.set('access_type', 'offline');
   url.searchParams.set('client_id', googleClientId);

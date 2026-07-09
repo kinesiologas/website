@@ -11,6 +11,10 @@ function redirectToProfile(siteUrl: string, status: string, detail = '') {
   return Response.redirect(url.toString(), 302);
 }
 
+function getCalendarRedirectUri(supabaseUrl: string) {
+  return `${supabaseUrl.replace(/\/$/, '')}/functions/v1/calendar-oauth-callback`;
+}
+
 Deno.serve(async (request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -55,7 +59,7 @@ Deno.serve(async (request) => {
     return redirectToProfile(siteUrl, 'error', 'expired_state');
   }
 
-  const redirectUri = `${requestUrl.origin}/calendar-oauth-callback`;
+  const redirectUri = getCalendarRedirectUri(supabaseUrl);
   const tokenBody = new URLSearchParams({
     client_id: googleClientId,
     client_secret: googleClientSecret,

@@ -61,7 +61,7 @@ supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 7. Para Google Calendar, activar Google Calendar API en Google Cloud y agregar este redirect URI al mismo OAuth Client:
 
 ```text
-https://PROJECT_REF.functions.supabase.co/calendar-oauth-callback
+https://PROJECT_REF.supabase.co/functions/v1/calendar-oauth-callback
 ```
 
 Luego configurar secretos y desplegar las funciones:
