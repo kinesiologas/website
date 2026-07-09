@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
 };
 
-const calendarScope = 'https://www.googleapis.com/auth/calendar.freebusy openid email';
+const calendarScope = 'https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.calendarlist.readonly openid email';
 
 function getCalendarRedirectUri(supabaseUrl: string) {
   return `${supabaseUrl.replace(/\/$/, '')}/functions/v1/calendar-oauth-callback`;

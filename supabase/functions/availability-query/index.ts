@@ -195,6 +195,41 @@ function getCalendarQueryIds(connection: Record<string, unknown>) {
   );
 }
 
+async function getCalendarListIds(accessToken: string) {
+  const url = new URL('https://www.googleapis.com/calendar/v3/users/me/calendarList');
+  url.searchParams.set('maxResults', '50');
+  url.searchParams.set('minAccessRole', 'freeBusyReader');
+  url.searchParams.set('showHidden', 'true');
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  }).catch((error) => {
+    console.warn('Google CalendarList request failed. Falling back to known calendar ids.', error);
+    return null;
+  });
+
+  if (!response) {
+    return [];
+  }
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    console.warn('Google CalendarList returned an error. Falling back to known calendar ids.', data);
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      (data.items ?? [])
+        .map((calendar: { id?: string }) => String(calendar.id ?? '').trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 50);
+}
+
 async function refreshGoogleAccessToken(adminClient: ReturnType<typeof createClient>, connection: Record<string, unknown>) {
   const expiresAt = connection.expires_at ? new Date(String(connection.expires_at)).getTime() : 0;
 
@@ -258,7 +293,8 @@ async function getGoogleBusyRanges(
     return { busy: [], unavailable: false };
   }
 
-  const calendarIds = getCalendarQueryIds(connection);
+  const listedCalendarIds = await getCalendarListIds(accessToken);
+  const calendarIds = listedCalendarIds.length ? listedCalendarIds : getCalendarQueryIds(connection);
   const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
     body: JSON.stringify({
       items: calendarIds.map((id) => ({ id })),
@@ -312,6 +348,7 @@ async function getGoogleBusyRanges(
 
   console.log('Google Calendar FreeBusy result', {
     busyCount: ranges.length,
+    calendarListUsed: listedCalendarIds.length > 0,
     calendarsQueried: calendarIds.length,
     calendarsWithErrors,
   });

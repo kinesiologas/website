@@ -75,7 +75,7 @@ supabase functions deploy calendar-disconnect
 supabase functions deploy availability-query
 ```
 
-El enlace de calendario usa solo el scope `https://www.googleapis.com/auth/calendar.freebusy`. La app consulta rangos ocupados y no lee titulos ni crea eventos en Google Calendar.
+El enlace de calendario usa los scopes `https://www.googleapis.com/auth/calendar.freebusy` y `https://www.googleapis.com/auth/calendar.calendarlist.readonly`. La app lista calendarios disponibles para consultar rangos ocupados con FreeBusy; no lee titulos ni crea eventos en Google Calendar.
 
 8. Subir las imagenes a R2 manteniendo las mismas rutas, por ejemplo:
 
