@@ -14,7 +14,7 @@ async function invokeAvailability(body) {
   });
 
   if (error) {
-    throw error;
+    throw new Error(await readFunctionError(error));
   }
 
   if (data?.error) {
@@ -22,6 +22,35 @@ async function invokeAvailability(body) {
   }
 
   return data;
+}
+
+async function readFunctionError(error) {
+  const response = error?.context;
+
+  if (response && typeof response.clone === 'function') {
+    try {
+      const payload = await response.clone().json();
+      const message = payload?.error || payload?.message || payload?.details;
+
+      if (message) {
+        return String(message);
+      }
+    } catch (_jsonError) {
+      // Keep the original Supabase message if the response is not JSON.
+    }
+
+    try {
+      const text = await response.clone().text();
+
+      if (text) {
+        return text;
+      }
+    } catch (_textError) {
+      // Keep the original Supabase message if the body cannot be read twice.
+    }
+  }
+
+  return error?.message ?? 'No se pudo consultar disponibilidad.';
 }
 
 export async function listAvailabilityDays({ days = 31, modelId, modelSlug, startDate }) {

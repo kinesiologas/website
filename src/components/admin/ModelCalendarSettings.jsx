@@ -169,7 +169,7 @@ export function ModelCalendarSettings({ modelId }) {
       setDiagnostic(result);
 
       if (result.freeBusyHttpOk === false) {
-        setFeedback({ type: 'error', message: `Google FreeBusy respondio con estado ${result.freeBusyStatus}.` });
+        setFeedback({ type: 'error', message: result.error || `Google FreeBusy respondio con estado ${result.freeBusyStatus}.` });
       } else if (!Number(result.googleBusyCount ?? 0)) {
         setFeedback({ type: 'info', message: 'Google no devolvio rangos ocupados para esa fecha.' });
       } else {
@@ -342,6 +342,12 @@ export function ModelCalendarSettings({ modelId }) {
               {diagnostic.googleCalendarErrors?.length ? (
                 <div className="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-rose-100 md:col-span-4">
                   Google devolvio errores en {diagnostic.googleCalendarErrors.length} calendario(s).
+                </div>
+              ) : null}
+
+              {diagnostic.error ? (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-amber-100 md:col-span-4">
+                  {diagnostic.error}
                 </div>
               ) : null}
             </div>

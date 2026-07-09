@@ -444,22 +444,53 @@ async function diagnoseGoogleBusy(
 
   const listedCalendarIds = await getCalendarListIds(accessToken);
   const calendarIds = listedCalendarIds.length ? listedCalendarIds : getCalendarQueryIds(connection);
-  const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
-    body: JSON.stringify({
-      calendarExpansionMax: 50,
-      items: calendarIds.map((id) => ({ id })),
-      timeMax: rangeEnd.toISOString(),
-      timeMin: rangeStart.toISOString(),
-      timeZone,
-    }),
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    method: 'POST',
-  });
+  let response: Response | null = null;
+  let requestError = '';
+
+  try {
+    response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+      body: JSON.stringify({
+        calendarExpansionMax: 50,
+        items: calendarIds.map((id) => ({ id })),
+        timeMax: rangeEnd.toISOString(),
+        timeMin: rangeStart.toISOString(),
+        timeZone,
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+  } catch (error) {
+    requestError = error instanceof Error ? error.message : 'No se pudo consultar Google FreeBusy.';
+  }
+
+  if (!response) {
+    const slots = buildSlotsForDate(rule, dateOnly, internalBusy, false);
+
+    return {
+      connected: true,
+      date: dateOnly,
+      error: requestError || 'No se pudo consultar Google FreeBusy.',
+      freeBusyHttpOk: false,
+      freeBusyStatus: 0,
+      googleBusy: [],
+      googleBusyCount: 0,
+      googleCalendarErrors: [],
+      googleCalendarsListed: listedCalendarIds.length,
+      googleCalendarsQueried: calendarIds.length,
+      internalBusyCount: internalBusy.length,
+      remainingSlots: slots,
+      remainingSlotsCount: slots.length,
+      storedCalendarEmail: connection.calendar_email ? 'set' : 'empty',
+      storedScope: String(connection.scope ?? ''),
+    };
+  }
+
   const data = await response.json().catch(() => ({}));
   const calendars = data.calendars ?? {};
+  const googleError = response.ok ? '' : String(data.error?.message ?? data.error_description ?? data.error ?? 'Google FreeBusy error.');
   const googleBusy = [];
   const googleCalendarErrors = [];
 
@@ -489,6 +520,7 @@ async function diagnoseGoogleBusy(
   return {
     connected: true,
     date: dateOnly,
+    error: googleError,
     freeBusyHttpOk: response.ok,
     freeBusyStatus: response.status,
     googleBusy: googleBusy.map((range) => ({
