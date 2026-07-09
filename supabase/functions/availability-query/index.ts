@@ -226,6 +226,12 @@ function getCalendarQueryIds(connection: Record<string, unknown>) {
 }
 
 async function getCalendarListIds(accessToken: string) {
+  const entries = await getCalendarListEntries(accessToken);
+
+  return entries.map((calendar) => calendar.id);
+}
+
+async function getCalendarListEntries(accessToken: string) {
   const url = new URL('https://www.googleapis.com/calendar/v3/users/me/calendarList');
   url.searchParams.set('maxResults', '50');
   url.searchParams.set('minAccessRole', 'freeBusyReader');
@@ -251,13 +257,23 @@ async function getCalendarListIds(accessToken: string) {
     return [];
   }
 
-  return Array.from(
-    new Set(
-      (data.items ?? [])
-        .map((calendar: { id?: string }) => String(calendar.id ?? '').trim())
-        .filter(Boolean),
-    ),
-  ).slice(0, 50);
+  const calendarsById = new Map<string, { id: string; primary: boolean; timeZone: string }>();
+
+  for (const calendar of data.items ?? []) {
+    const id = String(calendar.id ?? '').trim();
+
+    if (!id) {
+      continue;
+    }
+
+    calendarsById.set(id, {
+      id,
+      primary: Boolean(calendar.primary),
+      timeZone: String(calendar.timeZone ?? '').trim(),
+    });
+  }
+
+  return Array.from(calendarsById.values()).slice(0, 50);
 }
 
 async function refreshGoogleAccessToken(adminClient: ReturnType<typeof createClient>, connection: Record<string, unknown>) {
@@ -442,8 +458,10 @@ async function diagnoseGoogleBusy(
     };
   }
 
-  const listedCalendarIds = await getCalendarListIds(accessToken);
+  const listedCalendars = await getCalendarListEntries(accessToken);
+  const listedCalendarIds = listedCalendars.map((calendar) => calendar.id);
   const calendarIds = listedCalendarIds.length ? listedCalendarIds : getCalendarQueryIds(connection);
+  const primaryGoogleCalendar = listedCalendars.find((calendar) => calendar.primary) ?? listedCalendars[0] ?? null;
   let response: Response | null = null;
   let requestError = '';
 
@@ -480,11 +498,14 @@ async function diagnoseGoogleBusy(
       googleCalendarErrors: [],
       googleCalendarsListed: listedCalendarIds.length,
       googleCalendarsQueried: calendarIds.length,
+      googleCalendarTimeZones: Array.from(new Set(listedCalendars.map((calendar) => calendar.timeZone).filter(Boolean))),
       internalBusyCount: internalBusy.length,
+      primaryGoogleCalendarTimeZone: primaryGoogleCalendar?.timeZone ?? '',
       remainingSlots: slots,
       remainingSlotsCount: slots.length,
       storedCalendarEmail: connection.calendar_email ? 'set' : 'empty',
       storedScope: String(connection.scope ?? ''),
+      timeZoneMismatch: Boolean(primaryGoogleCalendar?.timeZone && primaryGoogleCalendar.timeZone !== timeZone),
     };
   }
 
@@ -531,7 +552,9 @@ async function diagnoseGoogleBusy(
     googleCalendarErrors,
     googleCalendarsListed: listedCalendarIds.length,
     googleCalendarsQueried: calendarIds.length,
+    googleCalendarTimeZones: Array.from(new Set(listedCalendars.map((calendar) => calendar.timeZone).filter(Boolean))),
     internalBusyCount: internalBusy.length,
+    primaryGoogleCalendarTimeZone: primaryGoogleCalendar?.timeZone ?? '',
     remainingSlots: slots,
     remainingSlotsCount: slots.length,
     rule: {
@@ -543,6 +566,7 @@ async function diagnoseGoogleBusy(
     },
     storedCalendarEmail: connection.calendar_email ? 'set' : 'empty',
     storedScope: String(connection.scope ?? ''),
+    timeZoneMismatch: Boolean(primaryGoogleCalendar?.timeZone && primaryGoogleCalendar.timeZone !== timeZone),
   };
 }
 

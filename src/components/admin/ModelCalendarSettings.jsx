@@ -31,24 +31,70 @@ const emptyBlock = {
   start_at: '',
 };
 
-function toInputDateTime(value) {
+function getTimeZoneOffsetMinutes(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    timeZoneName: 'shortOffset',
+  }).formatToParts(date);
+  const zoneName = parts.find((part) => part.type === 'timeZoneName')?.value ?? 'GMT';
+
+  if (zoneName === 'GMT' || zoneName === 'UTC') {
+    return 0;
+  }
+
+  const match = zoneName.match(/(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?/);
+
+  if (!match) {
+    return 0;
+  }
+
+  const sign = match[1] === '-' ? -1 : 1;
+  const hours = Number(match[2] ?? 0);
+  const minutes = Number(match[3] ?? 0);
+  return sign * (hours * 60 + minutes);
+}
+
+function zonedDateTimeToUtc(value, timeZone) {
+  if (!value) {
+    return null;
+  }
+
+  const [datePart, timePart = '00:00'] = value.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hour, minute] = timePart.split(':').map(Number);
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute || 0, 0));
+  const offsetMinutes = getTimeZoneOffsetMinutes(utcGuess, timeZone);
+  return new Date(utcGuess.getTime() - offsetMinutes * 60 * 1000);
+}
+
+function toInputDateTime(value, timeZone = 'America/Lima') {
   if (!value) {
     return '';
   }
 
-  const date = new Date(value);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
-  return local.toISOString().slice(0, 16);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    month: '2-digit',
+    timeZone,
+    year: 'numeric',
+  }).formatToParts(new Date(value));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
 }
 
-function toIsoDateTime(value) {
-  return value ? new Date(value).toISOString() : '';
+function toIsoDateTime(value, timeZone = 'America/Lima') {
+  return value ? zonedDateTimeToUtc(value, timeZone).toISOString() : '';
 }
 
-function formatDateTime(value) {
+function formatDateTime(value, timeZone = 'America/Lima') {
   return new Intl.DateTimeFormat('es-PE', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone,
   }).format(new Date(value));
 }
 
@@ -204,11 +250,13 @@ export function ModelCalendarSettings({ modelId }) {
     setFeedback({ type: '', message: '' });
 
     try {
+      const timeZone = rule?.timezone || 'America/Lima';
+
       await saveAvailabilityBlock({
         ...blockForm,
-        end_at: toIsoDateTime(blockForm.end_at),
+        end_at: toIsoDateTime(blockForm.end_at, timeZone),
         model_id: modelId,
-        start_at: toIsoDateTime(blockForm.start_at),
+        start_at: toIsoDateTime(blockForm.start_at, timeZone),
       });
       setBlockForm(emptyBlock);
       setBlocks(await listAvailabilityBlocks(modelId));
@@ -325,6 +373,14 @@ export function ModelCalendarSettings({ modelId }) {
                 <span className="block text-xs uppercase text-slate-500">Slots libres</span>
                 <strong className="mt-1 block text-white">{diagnostic.remainingSlotsCount ?? 0}</strong>
               </div>
+              <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3 md:col-span-2">
+                <span className="block text-xs uppercase text-slate-500">Zona modelo</span>
+                <strong className="mt-1 block text-white">{diagnostic.rule?.timezone || rule.timezone}</strong>
+              </div>
+              <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3 md:col-span-2">
+                <span className="block text-xs uppercase text-slate-500">Zona Google</span>
+                <strong className="mt-1 block text-white">{diagnostic.primaryGoogleCalendarTimeZone || diagnostic.googleCalendarTimeZones?.[0] || 'No reportada'}</strong>
+              </div>
 
               {diagnostic.googleBusy?.length ? (
                 <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3 md:col-span-4">
@@ -332,10 +388,16 @@ export function ModelCalendarSettings({ modelId }) {
                   <div className="mt-2 space-y-1">
                     {diagnostic.googleBusy.map((range) => (
                       <p key={`${range.start}-${range.end}`} className="text-slate-200">
-                        {formatDateTime(range.start)} - {formatDateTime(range.end)}
+                        {formatDateTime(range.start, diagnostic.rule?.timezone || rule.timezone)} - {formatDateTime(range.end, diagnostic.rule?.timezone || rule.timezone)}
                       </p>
                     ))}
                   </div>
+                </div>
+              ) : null}
+
+              {diagnostic.timeZoneMismatch ? (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-amber-100 md:col-span-4">
+                  La zona horaria de Google Calendar no coincide con la zona del modelo. Eso puede mover los bloqueos algunas horas.
                 </div>
               ) : null}
 
@@ -414,11 +476,11 @@ export function ModelCalendarSettings({ modelId }) {
                 type="button"
                 onClick={() => setBlockForm({
                   ...block,
-                  end_at: toInputDateTime(block.end_at),
-                  start_at: toInputDateTime(block.start_at),
+                  end_at: toInputDateTime(block.end_at, rule.timezone),
+                  start_at: toInputDateTime(block.start_at, rule.timezone),
                 })}
               >
-                <span className="block text-sm font-medium text-white">{formatDateTime(block.start_at)} - {formatDateTime(block.end_at)}</span>
+                <span className="block text-sm font-medium text-white">{formatDateTime(block.start_at, rule.timezone)} - {formatDateTime(block.end_at, rule.timezone)}</span>
                 <span className="mt-1 block truncate text-xs text-slate-500">{block.reason || 'Sin motivo'}</span>
               </button>
               <button
