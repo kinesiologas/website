@@ -242,7 +242,8 @@ async function getGoogleBusyRanges(
   const accessToken = await refreshGoogleAccessToken(adminClient, connection);
 
   if (!accessToken) {
-    return { busy: [], unavailable: true };
+    console.warn('Google Calendar access token is unavailable. Continuing with internal availability.');
+    return { busy: [], unavailable: false };
   }
 
   const calendarId = String(connection.calendar_id ?? 'primary');
@@ -258,17 +259,27 @@ async function getGoogleBusyRanges(
       'Content-Type': 'application/json',
     },
     method: 'POST',
+  }).catch((error) => {
+    console.warn('Google Calendar FreeBusy request failed. Continuing with internal availability.', error);
+    return null;
   });
+
+  if (!response) {
+    return { busy: [], unavailable: false };
+  }
+
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    return { busy: [], unavailable: true };
+    console.warn('Google Calendar FreeBusy returned an error. Continuing with internal availability.', data);
+    return { busy: [], unavailable: false };
   }
 
   const calendar = data.calendars?.[calendarId] ?? data.calendars?.primary;
 
   if (calendar?.errors?.length) {
-    return { busy: [], unavailable: true };
+    console.warn('Google Calendar FreeBusy returned calendar errors. Continuing with internal availability.', calendar.errors);
+    return { busy: [], unavailable: false };
   }
 
   return { busy: toBusyRanges(calendar?.busy ?? []), unavailable: false };
@@ -372,12 +383,16 @@ async function handleDays(adminClient: ReturnType<typeof createClient>, model: R
   const days = Math.min(Math.max(Number(body.days ?? 31), 1), 62);
   const dates = dateList(startDate, days);
   const now = new Date().toISOString();
-  const { data: cached, error: cacheError } = await adminClient
-    .from('availability_cache')
-    .select('date, is_available, expires_at')
-    .eq('model_id', String(model.id))
-    .in('date', dates)
-    .gt('expires_at', now);
+  const connection = await getConnection(adminClient, String(model.id));
+  const cacheQuery = connection
+    ? Promise.resolve({ data: [], error: null })
+    : adminClient
+      .from('availability_cache')
+      .select('date, is_available, expires_at')
+      .eq('model_id', String(model.id))
+      .in('date', dates)
+      .gt('expires_at', now);
+  const { data: cached, error: cacheError } = await cacheQuery;
 
   if (cacheError) {
     throw new Error(cacheError.message);

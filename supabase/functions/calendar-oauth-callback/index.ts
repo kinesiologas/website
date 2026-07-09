@@ -127,6 +127,10 @@ Deno.serve(async (request) => {
     },
     { onConflict: 'model_id' },
   );
+  await adminClient
+    .from('availability_cache')
+    .delete()
+    .eq('model_id', stateRecord.model_id);
   await adminClient.from('calendar_oauth_states').delete().eq('state', state);
 
   return redirectToProfile(siteUrl, 'connected');

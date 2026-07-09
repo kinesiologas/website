@@ -82,5 +82,10 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: statusError.message }, 500);
   }
 
+  await adminClient
+    .from('availability_cache')
+    .delete()
+    .eq('model_id', profile.model_id);
+
   return jsonResponse({ disconnected: true });
 });
