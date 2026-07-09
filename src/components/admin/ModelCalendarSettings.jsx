@@ -1,5 +1,6 @@
-import { CalendarDays, PlugZap, Save, Trash2, Unplug } from 'lucide-react';
+import { CalendarDays, PlugZap, RefreshCw, Save, Trash2, Unplug } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { diagnoseAvailability } from '../../services/availabilityService.js';
 import {
   deleteAvailabilityBlock,
   disconnectGoogleCalendar,
@@ -51,12 +52,21 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function todayInputDate() {
+  const date = new Date();
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
+  return local.toISOString().slice(0, 10);
+}
+
 export function ModelCalendarSettings({ modelId }) {
   const [calendarStatus, setCalendarStatus] = useState(null);
   const [rule, setRule] = useState(null);
   const [blocks, setBlocks] = useState([]);
   const [blockForm, setBlockForm] = useState(emptyBlock);
+  const [diagnosticDate, setDiagnosticDate] = useState(todayInputDate);
+  const [diagnostic, setDiagnostic] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -142,6 +152,33 @@ export function ModelCalendarSettings({ modelId }) {
       setFeedback({ type: 'success', message: 'Calendario desconectado.' });
     } catch (error) {
       setFeedback({ type: 'error', message: error.message });
+    }
+  }
+
+  async function handleDiagnoseCalendar(event) {
+    event.preventDefault();
+    setFeedback({ type: '', message: '' });
+    setDiagnostic(null);
+    setIsDiagnosing(true);
+
+    try {
+      const result = await diagnoseAvailability({
+        date: diagnosticDate,
+        modelId,
+      });
+      setDiagnostic(result);
+
+      if (result.freeBusyHttpOk === false) {
+        setFeedback({ type: 'error', message: `Google FreeBusy respondio con estado ${result.freeBusyStatus}.` });
+      } else if (!Number(result.googleBusyCount ?? 0)) {
+        setFeedback({ type: 'info', message: 'Google no devolvio rangos ocupados para esa fecha.' });
+      } else {
+        setFeedback({ type: 'success', message: 'Google devolvio rangos ocupados para esa fecha.' });
+      }
+    } catch (error) {
+      setFeedback({ type: 'error', message: error.message });
+    } finally {
+      setIsDiagnosing(false);
     }
   }
 
@@ -249,6 +286,68 @@ export function ModelCalendarSettings({ modelId }) {
           Sin conexion a Google Calendar. Se usaran solo horarios, bloqueos y reservas internas.
         </p>
       )}
+
+      {calendarStatus ? (
+        <form className="mt-4 rounded-md border border-slate-800 bg-slate-950 p-4" onSubmit={handleDiagnoseCalendar}>
+          <div className="grid gap-3 md:grid-cols-[220px_auto] md:items-end">
+            <TextInput
+              label="Fecha de prueba"
+              type="date"
+              value={diagnosticDate}
+              onChange={(event) => setDiagnosticDate(event.target.value)}
+              required
+            />
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-700 px-4 text-sm font-semibold text-slate-200 transition hover:border-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              disabled={isDiagnosing}
+            >
+              <RefreshCw aria-hidden="true" size={16} />
+              {isDiagnosing ? 'Probando...' : 'Probar sincronizacion'}
+            </button>
+          </div>
+
+          {diagnostic ? (
+            <div className="mt-4 grid gap-3 text-sm text-slate-300 md:grid-cols-4">
+              <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3">
+                <span className="block text-xs uppercase text-slate-500">FreeBusy</span>
+                <strong className="mt-1 block text-white">{diagnostic.freeBusyHttpOk ? 'OK' : `Error ${diagnostic.freeBusyStatus ?? ''}`}</strong>
+              </div>
+              <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3">
+                <span className="block text-xs uppercase text-slate-500">Calendarios</span>
+                <strong className="mt-1 block text-white">{diagnostic.googleCalendarsQueried ?? 0}</strong>
+              </div>
+              <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3">
+                <span className="block text-xs uppercase text-slate-500">Ocupados Google</span>
+                <strong className="mt-1 block text-white">{diagnostic.googleBusyCount ?? 0}</strong>
+              </div>
+              <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3">
+                <span className="block text-xs uppercase text-slate-500">Slots libres</span>
+                <strong className="mt-1 block text-white">{diagnostic.remainingSlotsCount ?? 0}</strong>
+              </div>
+
+              {diagnostic.googleBusy?.length ? (
+                <div className="rounded-md border border-slate-800 bg-[#0f131a] p-3 md:col-span-4">
+                  <span className="block text-xs uppercase text-slate-500">Rangos ocupados detectados</span>
+                  <div className="mt-2 space-y-1">
+                    {diagnostic.googleBusy.map((range) => (
+                      <p key={`${range.start}-${range.end}`} className="text-slate-200">
+                        {formatDateTime(range.start)} - {formatDateTime(range.end)}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {diagnostic.googleCalendarErrors?.length ? (
+                <div className="rounded-md border border-rose-500/30 bg-rose-500/10 p-3 text-rose-100 md:col-span-4">
+                  Google devolvio errores en {diagnostic.googleCalendarErrors.length} calendario(s).
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </form>
+      ) : null}
 
       <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={handleSaveRule}>
         <TextInput label="Zona horaria" value={rule.timezone} onChange={(event) => setRuleField('timezone', event.target.value)} required />

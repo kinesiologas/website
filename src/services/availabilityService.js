@@ -47,6 +47,15 @@ export async function listAvailabilitySlots({ date, modelId, modelSlug }) {
   return data ?? { calendarUnavailable: false, slots: [] };
 }
 
+export async function diagnoseAvailability({ date, modelId, modelSlug }) {
+  return invokeAvailability({
+    action: 'diagnose',
+    date,
+    modelId,
+    modelSlug,
+  });
+}
+
 export async function createBookingRequest({ contactName, contactPhone, modelId, modelSlug, notes, startAt }) {
   const data = await invokeAvailability({
     action: 'book',

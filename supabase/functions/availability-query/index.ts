@@ -131,8 +131,16 @@ async function getUserFromRequest(request: Request, supabaseUrl: string, supabas
   return user;
 }
 
-async function getPublishedModel(adminClient: ReturnType<typeof createClient>, body: Record<string, unknown>) {
-  let query = adminClient.from('models').select('id, slug, name, status').eq('status', 'published');
+async function getPublishedModel(
+  adminClient: ReturnType<typeof createClient>,
+  body: Record<string, unknown>,
+  requirePublished = true,
+) {
+  let query = adminClient.from('models').select('id, slug, name, status');
+
+  if (requirePublished) {
+    query = query.eq('status', 'published');
+  }
 
   if (body.modelId) {
     query = query.eq('id', String(body.modelId));
@@ -172,7 +180,7 @@ async function getRule(adminClient: ReturnType<typeof createClient>, modelId: st
 async function getConnection(adminClient: ReturnType<typeof createClient>, modelId: string) {
   const { data, error } = await adminClient
     .from('calendar_connections')
-    .select('model_id, calendar_id, calendar_email, access_token, refresh_token, expires_at')
+    .select('model_id, calendar_id, calendar_email, access_token, refresh_token, expires_at, scope')
     .eq('model_id', modelId)
     .maybeSingle();
 
@@ -181,6 +189,28 @@ async function getConnection(adminClient: ReturnType<typeof createClient>, model
   }
 
   return data;
+}
+
+async function userCanDiagnoseModel(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  modelId: string,
+) {
+  const { data, error } = await adminClient
+    .from('app_profiles')
+    .select('role, active, model_id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !data?.active) {
+    return false;
+  }
+
+  if (data.role === 'super_admin' || data.role === 'admin') {
+    return true;
+  }
+
+  return data.role === 'model' && data.model_id === modelId;
 }
 
 function getCalendarQueryIds(connection: Record<string, unknown>) {
@@ -297,6 +327,7 @@ async function getGoogleBusyRanges(
   const calendarIds = listedCalendarIds.length ? listedCalendarIds : getCalendarQueryIds(connection);
   const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
     body: JSON.stringify({
+      calendarExpansionMax: 50,
       items: calendarIds.map((id) => ({ id })),
       timeMax: rangeEnd.toISOString(),
       timeMin: rangeStart.toISOString(),
@@ -354,6 +385,133 @@ async function getGoogleBusyRanges(
   });
 
   return { busy: ranges, unavailable: false };
+}
+
+async function diagnoseGoogleBusy(
+  adminClient: ReturnType<typeof createClient>,
+  modelId: string,
+  dateOnly: string,
+) {
+  const rule = await getRule(adminClient, modelId);
+  const timeZone = String(rule.timezone ?? defaultRule.timezone);
+  const rangeStart = zonedDateTimeToUtc(dateOnly, '00:00:00', timeZone);
+  const rangeEnd = zonedDateTimeToUtc(addDays(dateOnly, 1), '00:00:00', timeZone);
+  const connection = await getConnection(adminClient, modelId);
+  const internalBusy = await getInternalBusyRanges(adminClient, modelId, rangeStart, rangeEnd);
+
+  if (!connection) {
+    const slots = buildSlotsForDate(rule, dateOnly, internalBusy, false);
+
+    return {
+      connected: false,
+      date: dateOnly,
+      googleBusy: [],
+      googleBusyCount: 0,
+      googleCalendarErrors: [],
+      googleCalendarsQueried: 0,
+      internalBusyCount: internalBusy.length,
+      remainingSlots: slots,
+      remainingSlotsCount: slots.length,
+      rule: {
+        daysOfWeek: rule.days_of_week,
+        endTime: rule.end_time,
+        slotDurationMinutes: rule.slot_duration_minutes,
+        startTime: rule.start_time,
+        timezone: rule.timezone,
+      },
+    };
+  }
+
+  const accessToken = await refreshGoogleAccessToken(adminClient, connection);
+
+  if (!accessToken) {
+    const slots = buildSlotsForDate(rule, dateOnly, internalBusy, false);
+
+    return {
+      connected: true,
+      date: dateOnly,
+      error: 'No se pudo refrescar el token de Google.',
+      googleBusy: [],
+      googleBusyCount: 0,
+      googleCalendarErrors: [],
+      googleCalendarsQueried: 0,
+      internalBusyCount: internalBusy.length,
+      remainingSlots: slots,
+      remainingSlotsCount: slots.length,
+      storedScope: String(connection.scope ?? ''),
+    };
+  }
+
+  const listedCalendarIds = await getCalendarListIds(accessToken);
+  const calendarIds = listedCalendarIds.length ? listedCalendarIds : getCalendarQueryIds(connection);
+  const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+    body: JSON.stringify({
+      calendarExpansionMax: 50,
+      items: calendarIds.map((id) => ({ id })),
+      timeMax: rangeEnd.toISOString(),
+      timeMin: rangeStart.toISOString(),
+      timeZone,
+    }),
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
+  const data = await response.json().catch(() => ({}));
+  const calendars = data.calendars ?? {};
+  const googleBusy = [];
+  const googleCalendarErrors = [];
+
+  if (response.ok) {
+    for (const calendarId of calendarIds) {
+      const calendar = calendars[calendarId];
+
+      if (!calendar) {
+        continue;
+      }
+
+      if (calendar.errors?.length) {
+        googleCalendarErrors.push({
+          calendar: calendarId === 'primary' ? 'primary' : 'calendar',
+          errors: calendar.errors,
+        });
+        continue;
+      }
+
+      googleBusy.push(...toBusyRanges(calendar.busy ?? []));
+    }
+  }
+
+  const busy = [...internalBusy, ...googleBusy];
+  const slots = buildSlotsForDate(rule, dateOnly, busy, false);
+
+  return {
+    connected: true,
+    date: dateOnly,
+    freeBusyHttpOk: response.ok,
+    freeBusyStatus: response.status,
+    googleBusy: googleBusy.map((range) => ({
+      end: range.end.toISOString(),
+      start: range.start.toISOString(),
+    })),
+    googleBusyCount: googleBusy.length,
+    googleCalendarErrors,
+    googleCalendarsListed: listedCalendarIds.length,
+    googleCalendarsQueried: calendarIds.length,
+    internalBusyCount: internalBusy.length,
+    remainingSlots: slots,
+    remainingSlotsCount: slots.length,
+    rule: {
+      daysOfWeek: rule.days_of_week,
+      endTime: rule.end_time,
+      slotDurationMinutes: rule.slot_duration_minutes,
+      startTime: rule.start_time,
+      timezone,
+    },
+    storedCalendarEmail: connection.calendar_email ? 'set' : 'empty',
+    storedScope: String(connection.scope ?? ''),
+  };
 }
 
 async function getInternalBusyRanges(
@@ -540,7 +698,7 @@ Deno.serve(async (request) => {
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
   const body = await request.json().catch(() => ({}));
   const action = String(body.action ?? 'days');
-  const modelResult = await getPublishedModel(adminClient, body);
+  const modelResult = await getPublishedModel(adminClient, body, action !== 'diagnose');
 
   if (modelResult.error || !modelResult.model) {
     return jsonResponse({ error: modelResult.error ?? 'Model not found.' }, 404);
@@ -555,6 +713,22 @@ Deno.serve(async (request) => {
 
     if (!user) {
       return jsonResponse({ error: 'Unauthorized.' }, 401);
+    }
+
+    if (action === 'diagnose') {
+      const date = String(body.date ?? '');
+
+      if (!date) {
+        return jsonResponse({ error: 'Date is required.' }, 400);
+      }
+
+      const canDiagnose = await userCanDiagnoseModel(adminClient, user.id, String(modelResult.model.id));
+
+      if (!canDiagnose) {
+        return jsonResponse({ error: 'Forbidden.' }, 403);
+      }
+
+      return jsonResponse(await diagnoseGoogleBusy(adminClient, String(modelResult.model.id), date));
     }
 
     if (action === 'slots') {
