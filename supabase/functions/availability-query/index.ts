@@ -172,7 +172,7 @@ async function getRule(adminClient: ReturnType<typeof createClient>, modelId: st
 async function getConnection(adminClient: ReturnType<typeof createClient>, modelId: string) {
   const { data, error } = await adminClient
     .from('calendar_connections')
-    .select('model_id, calendar_id, access_token, refresh_token, expires_at')
+    .select('model_id, calendar_id, calendar_email, access_token, refresh_token, expires_at')
     .eq('model_id', modelId)
     .maybeSingle();
 
@@ -181,6 +181,18 @@ async function getConnection(adminClient: ReturnType<typeof createClient>, model
   }
 
   return data;
+}
+
+function getCalendarQueryIds(connection: Record<string, unknown>) {
+  return Array.from(
+    new Set(
+      [
+        String(connection.calendar_id ?? 'primary').trim(),
+        String(connection.calendar_email ?? '').trim(),
+        'primary',
+      ].filter(Boolean),
+    ),
+  );
 }
 
 async function refreshGoogleAccessToken(adminClient: ReturnType<typeof createClient>, connection: Record<string, unknown>) {
@@ -246,10 +258,10 @@ async function getGoogleBusyRanges(
     return { busy: [], unavailable: false };
   }
 
-  const calendarId = String(connection.calendar_id ?? 'primary');
+  const calendarIds = getCalendarQueryIds(connection);
   const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
     body: JSON.stringify({
-      items: [{ id: calendarId }],
+      items: calendarIds.map((id) => ({ id })),
       timeMax: rangeEnd.toISOString(),
       timeMin: rangeStart.toISOString(),
       timeZone,
@@ -275,14 +287,36 @@ async function getGoogleBusyRanges(
     return { busy: [], unavailable: false };
   }
 
-  const calendar = data.calendars?.[calendarId] ?? data.calendars?.primary;
+  const calendars = data.calendars ?? {};
+  const ranges = [];
+  let calendarsWithErrors = 0;
 
-  if (calendar?.errors?.length) {
-    console.warn('Google Calendar FreeBusy returned calendar errors. Continuing with internal availability.', calendar.errors);
-    return { busy: [], unavailable: false };
+  for (const calendarId of calendarIds) {
+    const calendar = calendars[calendarId];
+
+    if (!calendar) {
+      continue;
+    }
+
+    if (calendar.errors?.length) {
+      calendarsWithErrors += 1;
+      console.warn('Google Calendar FreeBusy returned calendar errors. Continuing with other calendars.', {
+        calendarId,
+        errors: calendar.errors,
+      });
+      continue;
+    }
+
+    ranges.push(...toBusyRanges(calendar.busy ?? []));
   }
 
-  return { busy: toBusyRanges(calendar?.busy ?? []), unavailable: false };
+  console.log('Google Calendar FreeBusy result', {
+    busyCount: ranges.length,
+    calendarsQueried: calendarIds.length,
+    calendarsWithErrors,
+  });
+
+  return { busy: ranges, unavailable: false };
 }
 
 async function getInternalBusyRanges(

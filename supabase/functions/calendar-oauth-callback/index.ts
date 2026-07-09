@@ -15,6 +15,25 @@ function getCalendarRedirectUri(supabaseUrl: string) {
   return `${supabaseUrl.replace(/\/$/, '')}/functions/v1/calendar-oauth-callback`;
 }
 
+function decodeBase64Url(value: string) {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+  return atob(padded);
+}
+
+function getEmailFromIdToken(idToken: string | undefined) {
+  if (!idToken) {
+    return '';
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(idToken.split('.')[1] ?? ''));
+    return typeof payload.email === 'string' ? payload.email : '';
+  } catch (_error) {
+    return '';
+  }
+}
+
 Deno.serve(async (request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -94,13 +113,13 @@ Deno.serve(async (request) => {
 
   const expiresIn = Number(tokenData.expires_in ?? 3600);
   const expiresAt = new Date(Date.now() + Math.max(expiresIn - 60, 60) * 1000).toISOString();
-  const calendarEmail = profile?.email ?? '';
+  const calendarEmail = getEmailFromIdToken(tokenData.id_token) || profile?.email || '';
 
   const { error: connectionError } = await adminClient.from('calendar_connections').upsert(
     {
       access_token: tokenData.access_token,
       calendar_email: calendarEmail,
-      calendar_id: 'primary',
+      calendar_id: calendarEmail || 'primary',
       connected_at: new Date().toISOString(),
       expires_at: expiresAt,
       model_id: stateRecord.model_id,
