@@ -1,10 +1,18 @@
-import { MailPlus, Save } from 'lucide-react';
+import { MailPlus, Plus, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader.jsx';
 import { CheckboxInput, SelectInput, TextInput } from '../../components/admin/FormControls.jsx';
 import { StatusMessage } from '../../components/admin/StatusMessage.jsx';
 import { ROLE_LABELS, ROLE_OPTIONS, ROLES } from '../../constants/roles.js';
-import { inviteUser, listAppProfiles, listModels, updateAppProfileAdmin } from '../../services/adminService.js';
+import {
+  inviteUser,
+  listAppProfiles,
+  listLocationCatalogs,
+  listModels,
+  listTerritoryAssignments,
+  replaceTerritoryAssignments,
+  updateAppProfileAdmin,
+} from '../../services/adminService.js';
 
 const emptyInvite = {
   email: '',
@@ -16,7 +24,9 @@ const emptyInvite = {
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [models, setModels] = useState([]);
+  const [locations, setLocations] = useState({ countries: [], provinces: [] });
   const [selectedId, setSelectedId] = useState('');
+  const [territories, setTerritories] = useState([]);
   const [inviteForm, setInviteForm] = useState(emptyInvite);
   const [editForm, setEditForm] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
@@ -28,13 +38,24 @@ export default function AdminUsers() {
     setIsLoading(true);
 
     try {
-      const [nextUsers, nextModels] = await Promise.all([listAppProfiles(), listModels()]);
+      const [nextUsers, nextModels, nextLocations] = await Promise.all([
+        listAppProfiles(),
+        listModels(),
+        listLocationCatalogs(),
+      ]);
       setUsers(nextUsers);
       setModels(nextModels);
+      setLocations(nextLocations);
 
       const selected = nextUsers.find((user) => user.id === nextSelectedId) ?? nextUsers[0] ?? null;
       setSelectedId(selected?.id ?? '');
       setEditForm(selected);
+
+      if (selected?.role === ROLES.ADMIN) {
+        setTerritories(await listTerritoryAssignments(selected.id));
+      } else {
+        setTerritories([]);
+      }
     } catch (error) {
       setFeedback({ type: 'error', message: error.message });
     } finally {
@@ -49,6 +70,33 @@ export default function AdminUsers() {
 
   useEffect(() => {
     setEditForm(selectedUser);
+
+    if (!selectedUser || selectedUser.role !== ROLES.ADMIN) {
+      setTerritories([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadTerritories() {
+      try {
+        const nextTerritories = await listTerritoryAssignments(selectedUser.id);
+
+        if (isMounted) {
+          setTerritories(nextTerritories);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setFeedback({ type: 'error', message: error.message });
+        }
+      }
+    }
+
+    loadTerritories();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedUser]);
 
   function setInviteField(name, value) {
@@ -57,6 +105,30 @@ export default function AdminUsers() {
 
   function setEditField(name, value) {
     setEditForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function addTerritory() {
+    setTerritories((current) => [...current, { country_id: '', province_id: '' }]);
+  }
+
+  function setTerritoryField(index, name, value) {
+    setTerritories((current) =>
+      current.map((territory, territoryIndex) => {
+        if (territoryIndex !== index) {
+          return territory;
+        }
+
+        return {
+          ...territory,
+          [name]: value,
+          ...(name === 'country_id' ? { province_id: '' } : {}),
+        };
+      }),
+    );
+  }
+
+  function removeTerritory(index) {
+    setTerritories((current) => current.filter((_, territoryIndex) => territoryIndex !== index));
   }
 
   async function handleInvite(event) {
@@ -84,6 +156,7 @@ export default function AdminUsers() {
 
     try {
       await updateAppProfileAdmin(editForm);
+      await replaceTerritoryAssignments(editForm.id, editForm.role === ROLES.ADMIN ? territories : []);
       await loadData(editForm.id);
       setFeedback({ type: 'success', message: 'Usuario actualizado.' });
     } catch (error) {
@@ -148,6 +221,57 @@ export default function AdminUsers() {
                 </SelectInput>
                 <CheckboxInput checked={editForm.active !== false} label="Cuenta activa" onChange={(value) => setEditField('active', value)} />
               </div>
+
+              {editForm.role === ROLES.ADMIN ? (
+                <div className="mt-5 rounded-md border border-slate-800 bg-slate-950 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-white">Territorios</h3>
+                    <button
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 text-slate-200 transition hover:border-rose-500 hover:text-white"
+                      type="button"
+                      aria-label="Agregar territorio"
+                      title="Agregar territorio"
+                      onClick={addTerritory}
+                    >
+                      <Plus aria-hidden="true" size={16} />
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {territories.map((territory, index) => {
+                      const provinceOptions = locations.provinces.filter((province) => province.country_id === territory.country_id);
+
+                      return (
+                        <div key={territory.id ?? index} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                          <SelectInput label="Pais" value={territory.country_id ?? ''} onChange={(event) => setTerritoryField(index, 'country_id', event.target.value)}>
+                            <option value="">Seleccionar</option>
+                            {locations.countries.map((country) => (
+                              <option key={country.id} value={country.id}>{country.name}</option>
+                            ))}
+                          </SelectInput>
+                          <SelectInput label="Provincia" value={territory.province_id ?? ''} onChange={(event) => setTerritoryField(index, 'province_id', event.target.value)} disabled={!territory.country_id}>
+                            <option value="">Todo el pais</option>
+                            {provinceOptions.map((province) => (
+                              <option key={province.id} value={province.id}>{province.name}</option>
+                            ))}
+                          </SelectInput>
+                          <button
+                            className="inline-flex h-11 w-11 items-center justify-center self-end rounded-md border border-slate-800 text-slate-400 transition hover:border-rose-500 hover:text-white"
+                            type="button"
+                            aria-label="Eliminar territorio"
+                            title="Eliminar territorio"
+                            onClick={() => removeTerritory(index)}
+                          >
+                            <Trash2 aria-hidden="true" size={16} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {!territories.length ? (
+                      <p className="text-sm text-slate-500">Sin territorios asignados.</p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               <button className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-500" type="submit">
                 <Save aria-hidden="true" size={18} />
                 Guardar usuario

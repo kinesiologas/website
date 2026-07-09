@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { WhatsAppButton } from '../components/contact/WhatsAppButton.jsx';
 import { GalleryGrid } from '../components/gallery/GalleryGrid.jsx';
 import { SectionHeader } from '../components/common/SectionHeader.jsx';
+import { PublicAvailabilityCalendar } from '../components/availability/PublicAvailabilityCalendar.jsx';
 import { getGalleryByModelSlug } from '../services/galleryService.js';
 import { getProfileBySlug } from '../services/profileService.js';
 
@@ -123,6 +124,8 @@ export default function Profile() {
           </a>
         </aside>
       </section>
+
+      <PublicAvailabilityCalendar modelId={profile.id} modelName={profile.name} modelSlug={profile.slug} />
 
       <section className="border-t border-[var(--color-border)] px-5 py-16 md:px-8 md:py-24">
         <div className="mx-auto max-w-7xl">

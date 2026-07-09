@@ -58,7 +58,26 @@ supabase secrets set SITE_URL=https://www.dominio.com
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-7. Subir las imagenes a R2 manteniendo las mismas rutas, por ejemplo:
+7. Para Google Calendar, activar Google Calendar API en Google Cloud y agregar este redirect URI al mismo OAuth Client:
+
+```text
+https://PROJECT_REF.functions.supabase.co/calendar-oauth-callback
+```
+
+Luego configurar secretos y desplegar las funciones:
+
+```bash
+supabase secrets set GOOGLE_CLIENT_ID=your-google-oauth-client-id
+supabase secrets set GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+supabase functions deploy calendar-connect
+supabase functions deploy calendar-oauth-callback
+supabase functions deploy calendar-disconnect
+supabase functions deploy availability-query
+```
+
+El enlace de calendario usa solo el scope `https://www.googleapis.com/auth/calendar.freebusy`. La app consulta rangos ocupados y no lee titulos ni crea eventos en Google Calendar.
+
+8. Subir las imagenes a R2 manteniendo las mismas rutas, por ejemplo:
 
 ```text
 images/models/isabella/cover.jpg
@@ -86,18 +105,21 @@ Rutas principales:
 /admin/usuarios
 /admin/mi-perfil
 /admin/favoritos
+/admin/reservas
 ```
 
 Roles:
 
 ```text
-super_admin: acceso total, usuarios e invitaciones
-admin: modelos, ubicaciones y categorias
-model: edicion del modelo vinculado
-user: cuenta y favoritos
+super_admin: acceso total, usuarios, territorios e invitaciones
+admin: modelos, ubicaciones, categorias y reservas dentro de sus territorios
+model: edicion del modelo vinculado, calendario y reservas propias
+user: cuenta, favoritos y solicitudes de reserva desde el perfil publico
 ```
 
 El panel guarda rutas o URLs de imagenes. La subida directa a R2 queda preparada como una integracion posterior.
+
+Los permisos territoriales se asignan desde `/admin/usuarios` a cuentas con rol `admin`. Cada asignacion puede cubrir un pais completo o una provincia especifica.
 
 ## Build para GitHub Pages
 

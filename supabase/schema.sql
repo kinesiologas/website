@@ -129,6 +129,153 @@ create table if not exists public.favorites (
   primary key (user_id, model_id)
 );
 
+create table if not exists public.admin_territory_assignments (
+  id text primary key,
+  user_id uuid not null references public.app_profiles(id) on delete cascade,
+  country_id text not null references public.countries(id) on delete cascade,
+  province_id text references public.provinces(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists admin_territory_user_country_all_idx
+  on public.admin_territory_assignments (user_id, country_id)
+  where province_id is null;
+
+create unique index if not exists admin_territory_user_country_province_idx
+  on public.admin_territory_assignments (user_id, country_id, province_id)
+  where province_id is not null;
+
+create table if not exists public.calendar_connections (
+  model_id text primary key references public.models(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  calendar_id text not null default 'primary',
+  calendar_email text not null default '',
+  access_token text not null,
+  refresh_token text not null,
+  expires_at timestamptz,
+  scope text not null default '',
+  connected_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.calendar_connection_status (
+  model_id text primary key references public.models(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  calendar_email text not null default '',
+  connected_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.calendar_oauth_states (
+  state text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  model_id text not null references public.models(id) on delete cascade,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.model_availability_rules (
+  model_id text primary key references public.models(id) on delete cascade,
+  timezone text not null default 'America/Lima',
+  days_of_week integer[] not null default array[1, 2, 3, 4, 5, 6],
+  start_time time not null default time '10:00',
+  end_time time not null default time '20:00',
+  slot_duration_minutes integer not null default 60,
+  buffer_minutes integer not null default 0,
+  min_notice_minutes integer not null default 120,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+do $$
+begin
+  alter table public.model_availability_rules
+    add constraint model_availability_rules_slot_duration_check check (slot_duration_minutes between 15 and 480);
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter table public.model_availability_rules
+    add constraint model_availability_rules_buffer_check check (buffer_minutes between 0 and 240);
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter table public.model_availability_rules
+    add constraint model_availability_rules_notice_check check (min_notice_minutes between 0 and 10080);
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.model_availability_blocks (
+  id text primary key,
+  model_id text not null references public.models(id) on delete cascade,
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  reason text not null default '',
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+do $$
+begin
+  alter table public.model_availability_blocks
+    add constraint model_availability_blocks_range_check check (end_at > start_at);
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.availability_cache (
+  model_id text not null references public.models(id) on delete cascade,
+  date date not null,
+  is_available boolean not null default false,
+  expires_at timestamptz not null,
+  checked_at timestamptz not null default now(),
+  primary key (model_id, date)
+);
+
+create table if not exists public.bookings (
+  id text primary key,
+  model_id text not null references public.models(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  status text not null default 'pending',
+  notes text not null default '',
+  contact_name text not null default '',
+  contact_phone text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+do $$
+begin
+  alter table public.bookings
+    add constraint bookings_status_check check (status in ('pending', 'confirmed', 'rejected', 'cancelled'));
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter table public.bookings
+    add constraint bookings_range_check check (end_at > start_at);
+exception
+  when duplicate_object then null;
+end $$;
+
+create index if not exists admin_territory_assignments_user_idx on public.admin_territory_assignments (user_id);
+create index if not exists admin_territory_assignments_country_idx on public.admin_territory_assignments (country_id);
+create index if not exists bookings_model_start_idx on public.bookings (model_id, start_at);
+create index if not exists bookings_user_start_idx on public.bookings (user_id, start_at);
+create index if not exists availability_blocks_model_start_idx on public.model_availability_blocks (model_id, start_at);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -145,6 +292,11 @@ drop trigger if exists set_provinces_updated_at on public.provinces;
 drop trigger if exists set_cities_updated_at on public.cities;
 drop trigger if exists set_models_updated_at on public.models;
 drop trigger if exists set_app_profiles_updated_at on public.app_profiles;
+drop trigger if exists set_calendar_connections_updated_at on public.calendar_connections;
+drop trigger if exists set_calendar_connection_status_updated_at on public.calendar_connection_status;
+drop trigger if exists set_model_availability_rules_updated_at on public.model_availability_rules;
+drop trigger if exists set_model_availability_blocks_updated_at on public.model_availability_blocks;
+drop trigger if exists set_bookings_updated_at on public.bookings;
 
 create trigger set_countries_updated_at
   before update on public.countries
@@ -164,6 +316,26 @@ create trigger set_models_updated_at
 
 create trigger set_app_profiles_updated_at
   before update on public.app_profiles
+  for each row execute function public.set_updated_at();
+
+create trigger set_calendar_connections_updated_at
+  before update on public.calendar_connections
+  for each row execute function public.set_updated_at();
+
+create trigger set_calendar_connection_status_updated_at
+  before update on public.calendar_connection_status
+  for each row execute function public.set_updated_at();
+
+create trigger set_model_availability_rules_updated_at
+  before update on public.model_availability_rules
+  for each row execute function public.set_updated_at();
+
+create trigger set_model_availability_blocks_updated_at
+  before update on public.model_availability_blocks
+  for each row execute function public.set_updated_at();
+
+create trigger set_bookings_updated_at
+  before update on public.bookings
   for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
@@ -246,6 +418,97 @@ as $$
   select public.current_app_role() = 'super_admin';
 $$;
 
+create or replace function public.model_owns_model(target_model_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.current_app_role() = 'model'
+    and public.current_model_id() = target_model_id;
+$$;
+
+create or replace function public.admin_can_manage_territory(target_country_id text, target_province_id text default null)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when public.current_app_role() = 'super_admin' then true
+    when public.current_app_role() <> 'admin' then false
+    when target_country_id is null then false
+    else exists (
+      select 1
+      from public.admin_territory_assignments assignments
+      where assignments.user_id = auth.uid()
+        and assignments.country_id = target_country_id
+        and (
+          assignments.province_id is null
+          or assignments.province_id = target_province_id
+        )
+    )
+  end;
+$$;
+
+create or replace function public.admin_can_manage_province(target_province_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.provinces
+    where provinces.id = target_province_id
+      and public.admin_can_manage_territory(provinces.country_id, provinces.id)
+  );
+$$;
+
+create or replace function public.admin_can_access_model(target_model_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.models
+    where models.id = target_model_id
+      and public.admin_can_manage_territory(models.country_id, models.province_id)
+  );
+$$;
+
+create or replace function public.admin_can_access_model_slug(target_model_slug text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.models
+    where models.slug = target_model_slug
+      and public.admin_can_manage_territory(models.country_id, models.province_id)
+  );
+$$;
+
+create or replace function public.can_manage_model_calendar(target_model_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.model_owns_model(target_model_id)
+    or public.admin_can_access_model(target_model_id);
+$$;
+
 create or replace function public.admin_update_app_profile(
   target_user_id uuid,
   next_role text default null,
@@ -298,6 +561,14 @@ alter table public.models enable row level security;
 alter table public.gallery_images enable row level security;
 alter table public.app_profiles enable row level security;
 alter table public.favorites enable row level security;
+alter table public.admin_territory_assignments enable row level security;
+alter table public.calendar_connections enable row level security;
+alter table public.calendar_connection_status enable row level security;
+alter table public.calendar_oauth_states enable row level security;
+alter table public.model_availability_rules enable row level security;
+alter table public.model_availability_blocks enable row level security;
+alter table public.availability_cache enable row level security;
+alter table public.bookings enable row level security;
 
 drop policy if exists "Public read categories" on public.categories;
 drop policy if exists "Public read active categories" on public.categories;
@@ -323,8 +594,8 @@ create policy "Admins manage countries"
   on public.countries
   for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.is_super_admin())
+  with check (public.is_super_admin());
 
 drop policy if exists "Public read active provinces" on public.provinces;
 drop policy if exists "Admins manage provinces" on public.provinces;
@@ -343,8 +614,8 @@ create policy "Admins manage provinces"
   on public.provinces
   for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.admin_can_manage_territory(country_id, id))
+  with check (public.admin_can_manage_territory(country_id, id));
 
 drop policy if exists "Public read active cities" on public.cities;
 drop policy if exists "Admins manage cities" on public.cities;
@@ -365,24 +636,43 @@ create policy "Admins manage cities"
   on public.cities
   for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.admin_can_manage_province(province_id))
+  with check (public.admin_can_manage_province(province_id));
 
 drop policy if exists "Public read models" on public.models;
 drop policy if exists "Public read published models" on public.models;
 drop policy if exists "Admins manage models" on public.models;
+drop policy if exists "Admins read territorial models" on public.models;
+drop policy if exists "Admins insert territorial models" on public.models;
+drop policy if exists "Admins update territorial models" on public.models;
+drop policy if exists "Admins delete territorial models" on public.models;
 drop policy if exists "Models read own profile" on public.models;
 drop policy if exists "Models update own profile" on public.models;
 create policy "Public read published models"
   on public.models
   for select
   using (status = 'published');
-create policy "Admins manage models"
+create policy "Admins read territorial models"
   on public.models
-  for all
+  for select
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.admin_can_manage_territory(country_id, province_id));
+create policy "Admins insert territorial models"
+  on public.models
+  for insert
+  to authenticated
+  with check (public.admin_can_manage_territory(country_id, province_id));
+create policy "Admins update territorial models"
+  on public.models
+  for update
+  to authenticated
+  using (public.admin_can_manage_territory(country_id, province_id))
+  with check (public.admin_can_manage_territory(country_id, province_id));
+create policy "Admins delete territorial models"
+  on public.models
+  for delete
+  to authenticated
+  using (public.admin_can_manage_territory(country_id, province_id));
 create policy "Models read own profile"
   on public.models
   for select
@@ -413,8 +703,8 @@ create policy "Admins manage gallery images"
   on public.gallery_images
   for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (public.admin_can_access_model_slug(model_slug))
+  with check (public.admin_can_access_model_slug(model_slug));
 create policy "Models manage own gallery images"
   on public.gallery_images
   for all
@@ -443,7 +733,7 @@ create policy "Profiles select own or admin"
   on public.app_profiles
   for select
   to authenticated
-  using (id = auth.uid() or public.is_admin());
+  using (id = auth.uid() or public.is_super_admin());
 create policy "Profiles insert own"
   on public.app_profiles
   for insert
@@ -482,6 +772,80 @@ create policy "Users delete own favorites"
   to authenticated
   using (user_id = auth.uid());
 
+drop policy if exists "Super admins manage admin territories" on public.admin_territory_assignments;
+drop policy if exists "Admins read own territories" on public.admin_territory_assignments;
+create policy "Super admins manage admin territories"
+  on public.admin_territory_assignments
+  for all
+  to authenticated
+  using (public.is_super_admin())
+  with check (public.is_super_admin());
+create policy "Admins read own territories"
+  on public.admin_territory_assignments
+  for select
+  to authenticated
+  using (user_id = auth.uid() and public.current_app_role() = 'admin');
+
+drop policy if exists "Calendar status read by owner or admin" on public.calendar_connection_status;
+create policy "Calendar status read by owner or admin"
+  on public.calendar_connection_status
+  for select
+  to authenticated
+  using (public.can_manage_model_calendar(model_id));
+
+drop policy if exists "Availability rules read by owner or admin" on public.model_availability_rules;
+drop policy if exists "Availability rules manage by owner or admin" on public.model_availability_rules;
+create policy "Availability rules read by owner or admin"
+  on public.model_availability_rules
+  for select
+  to authenticated
+  using (public.can_manage_model_calendar(model_id));
+create policy "Availability rules manage by owner or admin"
+  on public.model_availability_rules
+  for all
+  to authenticated
+  using (public.can_manage_model_calendar(model_id))
+  with check (public.can_manage_model_calendar(model_id));
+
+drop policy if exists "Availability blocks read by owner or admin" on public.model_availability_blocks;
+drop policy if exists "Availability blocks manage by owner or admin" on public.model_availability_blocks;
+create policy "Availability blocks read by owner or admin"
+  on public.model_availability_blocks
+  for select
+  to authenticated
+  using (public.can_manage_model_calendar(model_id));
+create policy "Availability blocks manage by owner or admin"
+  on public.model_availability_blocks
+  for all
+  to authenticated
+  using (public.can_manage_model_calendar(model_id))
+  with check (public.can_manage_model_calendar(model_id));
+
+drop policy if exists "Bookings read own or territorial" on public.bookings;
+drop policy if exists "Bookings manage by model or admin" on public.bookings;
+drop policy if exists "Users cancel own pending bookings" on public.bookings;
+create policy "Bookings read own or territorial"
+  on public.bookings
+  for select
+  to authenticated
+  using (
+    user_id = auth.uid()
+    or public.model_owns_model(model_id)
+    or public.admin_can_access_model(model_id)
+  );
+create policy "Bookings manage by model or admin"
+  on public.bookings
+  for update
+  to authenticated
+  using (public.model_owns_model(model_id) or public.admin_can_access_model(model_id))
+  with check (public.model_owns_model(model_id) or public.admin_can_access_model(model_id));
+create policy "Users cancel own pending bookings"
+  on public.bookings
+  for update
+  to authenticated
+  using (user_id = auth.uid() and status = 'pending')
+  with check (user_id = auth.uid() and status = 'cancelled');
+
 grant usage on schema public to anon, authenticated;
 grant select on public.categories, public.countries, public.provinces, public.cities, public.models, public.gallery_images to anon, authenticated;
 grant select, insert, update, delete on public.categories, public.countries, public.provinces, public.cities, public.models, public.gallery_images to authenticated;
@@ -489,6 +853,15 @@ grant select, insert on public.app_profiles to authenticated;
 revoke update on public.app_profiles from authenticated;
 grant update (full_name, avatar_url, updated_at) on public.app_profiles to authenticated;
 grant select, insert, delete on public.favorites to authenticated;
+grant select, insert, update, delete on public.admin_territory_assignments to authenticated;
+revoke all on public.calendar_connections from anon, authenticated;
+revoke all on public.calendar_oauth_states from anon, authenticated;
+revoke all on public.availability_cache from anon, authenticated;
+grant select on public.calendar_connection_status to authenticated;
+grant select, insert, update, delete on public.model_availability_rules to authenticated;
+grant select, insert, update, delete on public.model_availability_blocks to authenticated;
+grant select on public.bookings to authenticated;
+grant update (status, updated_at) on public.bookings to authenticated;
 grant execute on function public.admin_update_app_profile(uuid, text, boolean, text, text) to authenticated;
 
 insert into public.categories (id, label, sort_order, active)
@@ -630,6 +1003,12 @@ on conflict (id) do update set
   province_id = excluded.province_id,
   city_id = excluded.city_id,
   updated_at = now();
+
+insert into public.model_availability_rules (model_id, timezone, days_of_week, start_time, end_time, slot_duration_minutes, buffer_minutes, min_notice_minutes, enabled)
+select id, 'America/Lima', array[1, 2, 3, 4, 5, 6], time '10:00', time '20:00', 60, 0, 120, true
+from public.models
+where id in ('model-001', 'model-002', 'model-003')
+on conflict (model_id) do nothing;
 
 insert into public.gallery_images (id, model_slug, src, alt, sort_order)
 values

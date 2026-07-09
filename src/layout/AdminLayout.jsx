@@ -1,5 +1,6 @@
 import {
   Boxes,
+  CalendarDays,
   ChevronRight,
   FolderTree,
   Heart,
@@ -42,6 +43,12 @@ const navItems = [
     to: '/admin/categorias',
     icon: FolderTree,
     roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
+  },
+  {
+    label: 'Reservas',
+    to: '/admin/reservas',
+    icon: CalendarDays,
+    roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MODEL],
   },
   {
     label: 'Usuarios',

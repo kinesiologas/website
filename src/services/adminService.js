@@ -42,6 +42,32 @@ const PUBLIC_MODEL_COLUMNS = [
   'status',
 ].join(', ');
 
+const BOOKING_COLUMNS = [
+  'id',
+  'model_id',
+  'user_id',
+  'start_at',
+  'end_at',
+  'status',
+  'notes',
+  'contact_name',
+  'contact_phone',
+  'created_at',
+  'updated_at',
+  'models(id, name, slug, city, country_id, province_id)',
+].join(', ');
+
+const defaultAvailabilityRule = {
+  buffer_minutes: 0,
+  days_of_week: [1, 2, 3, 4, 5, 6],
+  enabled: true,
+  end_time: '20:00',
+  min_notice_minutes: 120,
+  slot_duration_minutes: 60,
+  start_time: '10:00',
+  timezone: 'America/Lima',
+};
+
 function ensureSupabase() {
   if (!supabase) {
     throw new Error('Supabase no esta configurado. Completa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
@@ -464,6 +490,62 @@ export async function updateAppProfileAdmin(profile) {
   return data;
 }
 
+export async function listTerritoryAssignments(userId) {
+  ensureSupabase();
+
+  if (!userId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('admin_territory_assignments')
+    .select('id, user_id, country_id, province_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function replaceTerritoryAssignments(userId, assignments) {
+  ensureSupabase();
+
+  if (!userId) {
+    return [];
+  }
+
+  const { error: deleteError } = await supabase
+    .from('admin_territory_assignments')
+    .delete()
+    .eq('user_id', userId);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  const rows = (assignments ?? [])
+    .filter((assignment) => assignment.country_id)
+    .map((assignment) => ({
+      country_id: assignment.country_id,
+      id: makeId('territory'),
+      province_id: assignment.province_id || null,
+      user_id: userId,
+    }));
+
+  if (rows.length) {
+    const { error: insertError } = await supabase.from('admin_territory_assignments').insert(rows);
+
+    if (insertError) {
+      throw insertError;
+    }
+  }
+
+  return listTerritoryAssignments(userId);
+}
+
 export async function inviteUser({ email, fullName, modelId, role }) {
   ensureSupabase();
 
@@ -530,4 +612,231 @@ export async function setFavorite(modelId, isFavorite) {
   if (error) {
     throw error;
   }
+}
+
+export async function getCalendarStatus(modelId) {
+  ensureSupabase();
+
+  if (!modelId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('calendar_connection_status')
+    .select('model_id, user_id, calendar_email, connected_at, updated_at')
+    .eq('model_id', modelId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+export async function startGoogleCalendarConnection() {
+  ensureSupabase();
+
+  const { data, error } = await supabase.functions.invoke('calendar-connect', {
+    body: {},
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.authUrl;
+}
+
+export async function disconnectGoogleCalendar() {
+  ensureSupabase();
+
+  const { data, error } = await supabase.functions.invoke('calendar-disconnect', {
+    body: {},
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getAvailabilityRule(modelId) {
+  ensureSupabase();
+
+  if (!modelId) {
+    return { ...defaultAvailabilityRule, model_id: modelId };
+  }
+
+  const { data, error } = await supabase
+    .from('model_availability_rules')
+    .select('model_id, timezone, days_of_week, start_time, end_time, slot_duration_minutes, buffer_minutes, min_notice_minutes, enabled')
+    .eq('model_id', modelId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ...defaultAvailabilityRule,
+    ...(data ?? {}),
+    end_time: (data?.end_time ?? defaultAvailabilityRule.end_time).slice(0, 5),
+    model_id: modelId,
+    start_time: (data?.start_time ?? defaultAvailabilityRule.start_time).slice(0, 5),
+  };
+}
+
+export async function saveAvailabilityRule(rule) {
+  ensureSupabase();
+
+  const payload = {
+    buffer_minutes: toSortOrder(rule.buffer_minutes),
+    days_of_week: (rule.days_of_week ?? []).map(Number).filter((day) => Number.isInteger(day)),
+    enabled: rule.enabled !== false,
+    end_time: rule.end_time || defaultAvailabilityRule.end_time,
+    min_notice_minutes: toSortOrder(rule.min_notice_minutes),
+    model_id: rule.model_id,
+    slot_duration_minutes: toSortOrder(rule.slot_duration_minutes) || defaultAvailabilityRule.slot_duration_minutes,
+    start_time: rule.start_time || defaultAvailabilityRule.start_time,
+    timezone: rule.timezone?.trim() || defaultAvailabilityRule.timezone,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('model_availability_rules')
+    .upsert(payload, { onConflict: 'model_id' })
+    .select('model_id, timezone, days_of_week, start_time, end_time, slot_duration_minutes, buffer_minutes, min_notice_minutes, enabled')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function listAvailabilityBlocks(modelId) {
+  ensureSupabase();
+
+  if (!modelId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('model_availability_blocks')
+    .select('id, model_id, start_at, end_at, reason, created_at, updated_at')
+    .eq('model_id', modelId)
+    .order('start_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+export async function saveAvailabilityBlock(block) {
+  ensureSupabase();
+
+  const payload = {
+    end_at: block.end_at,
+    model_id: block.model_id,
+    reason: block.reason?.trim() ?? '',
+    start_at: block.start_at,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (block.id) {
+    const { data, error } = await supabase
+      .from('model_availability_blocks')
+      .update(payload)
+      .eq('id', block.id)
+      .select('id, model_id, start_at, end_at, reason, created_at, updated_at')
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  const { data, error } = await supabase
+    .from('model_availability_blocks')
+    .insert({
+      ...payload,
+      id: makeId('block'),
+    })
+    .select('id, model_id, start_at, end_at, reason, created_at, updated_at')
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteAvailabilityBlock(blockId) {
+  ensureSupabase();
+
+  const { error } = await supabase.from('model_availability_blocks').delete().eq('id', blockId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function listBookings(filters = {}) {
+  ensureSupabase();
+
+  let query = supabase
+    .from('bookings')
+    .select(BOOKING_COLUMNS)
+    .order('start_at', { ascending: false });
+
+  if (filters.modelId) {
+    query = query.eq('model_id', filters.modelId);
+  }
+
+  if (filters.status && filters.status !== 'all') {
+    query = query.eq('status', filters.status);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).filter((booking) => {
+    if (filters.countryId && booking.models?.country_id !== filters.countryId) {
+      return false;
+    }
+
+    if (filters.provinceId && booking.models?.province_id !== filters.provinceId) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+export async function updateBookingStatus(bookingId, status) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', bookingId)
+    .select(BOOKING_COLUMNS)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }

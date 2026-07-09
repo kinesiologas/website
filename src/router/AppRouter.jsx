@@ -18,6 +18,7 @@ const AdminCategories = lazy(() => import('../pages/admin/AdminCategories.jsx'))
 const AdminUsers = lazy(() => import('../pages/admin/AdminUsers.jsx'));
 const AdminProfile = lazy(() => import('../pages/admin/AdminProfile.jsx'));
 const AdminFavorites = lazy(() => import('../pages/admin/AdminFavorites.jsx'));
+const AdminBookings = lazy(() => import('../pages/admin/AdminBookings.jsx'));
 
 const allRoles = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MODEL, ROLES.USER];
 const contentRoles = [ROLES.SUPER_ADMIN, ROLES.ADMIN];
@@ -51,6 +52,9 @@ export function AppRouter() {
                 <Route path="modelos" element={<AdminModels />} />
                 <Route path="ubicaciones" element={<AdminLocations />} />
                 <Route path="categorias" element={<AdminCategories />} />
+              </Route>
+              <Route element={<RequireAuth allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MODEL]} />}>
+                <Route path="reservas" element={<AdminBookings />} />
               </Route>
               <Route element={<RequireAuth allowedRoles={[ROLES.SUPER_ADMIN]} />}>
                 <Route path="usuarios" element={<AdminUsers />} />

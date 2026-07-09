@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader.jsx';
 import { TextInput } from '../../components/admin/FormControls.jsx';
 import { ModelEditor } from '../../components/admin/ModelEditor.jsx';
+import { ModelCalendarSettings } from '../../components/admin/ModelCalendarSettings.jsx';
 import { StatusMessage } from '../../components/admin/StatusMessage.jsx';
 import { ROLE_LABELS, ROLES } from '../../constants/roles.js';
 import { listCategoriesAdmin, listLocationCatalogs, listModels } from '../../services/adminService.js';
@@ -109,13 +110,16 @@ export default function AdminProfile() {
           <div>
             {isModelLoading ? <p className="text-sm text-slate-400">Cargando modelo asignado...</p> : null}
             {model ? (
-              <ModelEditor
-                canManageCatalog={false}
-                categories={categories}
-                locations={locations}
-                model={model}
-                onSaved={(savedModel) => setModel(savedModel)}
-              />
+              <>
+                <ModelEditor
+                  canManageCatalog={false}
+                  categories={categories}
+                  locations={locations}
+                  model={model}
+                  onSaved={(savedModel) => setModel(savedModel)}
+                />
+                <ModelCalendarSettings modelId={model.id} />
+              </>
             ) : (
               <div className="rounded-lg border border-slate-800 bg-[#0f131a] p-5 text-sm leading-6 text-slate-400">
                 No hay un modelo vinculado a esta cuenta.
