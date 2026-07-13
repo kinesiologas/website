@@ -52,7 +52,7 @@ export function Navbar() {
           to="/"
           onClick={() => setIsMenuOpen(false)}
         >
-          Maison
+          KinesiologasS
         </NavLink>
 
         <div className="hidden items-center gap-8 md:flex">

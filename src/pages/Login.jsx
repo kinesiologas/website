@@ -73,7 +73,7 @@ export default function Login() {
     <main className="min-h-screen bg-[#0b0d10] px-5 py-10 text-slate-100">
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl items-center gap-8 lg:grid-cols-[1fr_440px]">
         <section className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-rose-400">Maison Panel</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-rose-400">Panel</p>
           <h1 className="mt-5 font-serif text-5xl font-semibold leading-tight text-white md:text-7xl">
             Gestion privada del catalogo
           </h1>

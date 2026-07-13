@@ -100,6 +100,7 @@ Rutas principales:
 ```text
 /login
 /admin/modelos
+/admin/portada
 /admin/ubicaciones
 /admin/categorias
 /admin/usuarios
@@ -111,13 +112,21 @@ Rutas principales:
 Roles:
 
 ```text
-super_admin: acceso total, usuarios, territorios e invitaciones
+super_admin: acceso total, portada del sitio, usuarios, territorios e invitaciones
 admin: modelos, ubicaciones, categorias y reservas dentro de sus territorios
 model: edicion del modelo vinculado, calendario y reservas propias
 user: cuenta, favoritos y solicitudes de reserva desde el perfil publico
 ```
 
-El panel guarda rutas o URLs de imagenes. La subida directa a R2 queda preparada como una integracion posterior.
+El editor de modelos guarda rutas o URLs de imagenes. La portada de Inicio se administra por separado en `/admin/portada`: sus imagenes y videos se suben directamente al bucket publico `site-media` de Supabase Storage, con escritura exclusiva para super administradores.
+
+Para una base de datos ya existente, aplicar una sola vez la migracion incremental antes de desplegar el frontend:
+
+```text
+supabase/migrations/20260713_site_media.sql
+```
+
+La portada admite una imagen y un video opcional para escritorio, mas una imagen y un video opcional para celular. Si no hay video compatible se usa la imagen correspondiente; si tampoco existe una imagen configurada se usa `public/images/portada.png`.
 
 Los permisos territoriales se asignan desde `/admin/usuarios` a cuentas con rol `admin`. Cada asignacion puede cubrir un pais completo o una provincia especifica.
 

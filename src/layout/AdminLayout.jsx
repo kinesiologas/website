@@ -4,6 +4,7 @@ import {
   ChevronRight,
   FolderTree,
   Heart,
+  Image as ImageIcon,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -25,6 +26,12 @@ const navItems = [
     icon: LayoutDashboard,
     roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN],
     end: true,
+  },
+  {
+    label: 'Portada',
+    to: '/admin/portada',
+    icon: ImageIcon,
+    roles: [ROLES.SUPER_ADMIN],
   },
   {
     label: 'Modelos',
@@ -123,7 +130,7 @@ export function AdminLayout() {
             <Shield aria-hidden="true" size={20} />
           </span>
           <span>
-            <span className="block font-serif text-2xl font-semibold">Maison</span>
+            <span className="block font-serif text-2xl font-semibold">KinesiologasS</span>
             <span className="block text-xs uppercase tracking-[0.18em] text-slate-400">Panel</span>
           </span>
         </Link>

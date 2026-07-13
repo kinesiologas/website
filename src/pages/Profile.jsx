@@ -7,6 +7,10 @@ import { SectionHeader } from '../components/common/SectionHeader.jsx';
 import { PublicAvailabilityCalendar } from '../components/availability/PublicAvailabilityCalendar.jsx';
 import { getGalleryByModelSlug } from '../services/galleryService.js';
 import { getProfileBySlug } from '../services/profileService.js';
+import {
+  getProfileDocumentTitle,
+  PROFILE_LOADING_TITLE,
+} from '../utils/profileTitle.js';
 
 export default function Profile() {
   const { slug } = useParams();
@@ -16,6 +20,9 @@ export default function Profile() {
 
   useEffect(() => {
     let isMounted = true;
+    const previousTitle = document.title;
+
+    document.title = PROFILE_LOADING_TITLE;
 
     async function loadProfileData() {
       setIsLoading(true);
@@ -26,6 +33,7 @@ export default function Profile() {
         setProfile(nextProfile);
         setGallery(nextGallery);
         setIsLoading(false);
+        document.title = getProfileDocumentTitle(nextProfile);
       }
     }
 
@@ -33,6 +41,7 @@ export default function Profile() {
 
     return () => {
       isMounted = false;
+      document.title = previousTitle;
     };
   }, [slug]);
 

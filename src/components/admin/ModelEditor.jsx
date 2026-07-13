@@ -138,6 +138,15 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
 
   async function handleSubmit(event) {
     event.preventDefault();
+
+    if (form.status === 'published' && !form.whatsapp_number?.trim()) {
+      setFeedback({
+        type: 'error',
+        message: 'El celular/WhatsApp es obligatorio para publicar una modelo.',
+      });
+      return;
+    }
+
     setIsSaving(true);
     setFeedback({ type: '', message: '' });
 
@@ -270,7 +279,20 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
           </SelectInput>
 
           <TextInput label="Orden" type="number" value={form.sort_order} onChange={(event) => setField('sort_order', event.target.value)} disabled={!canManageCatalog} />
-          <TextInput label="WhatsApp" value={form.whatsapp_number} onChange={(event) => setField('whatsapp_number', event.target.value)} />
+          <TextInput
+            label="Celular/WhatsApp"
+            value={form.whatsapp_number}
+            onChange={(event) => setField('whatsapp_number', event.target.value)}
+            onInvalid={() => {
+              if (form.status === 'published') {
+                setFeedback({
+                  type: 'error',
+                  message: 'El celular/WhatsApp es obligatorio para publicar una modelo.',
+                });
+              }
+            }}
+            required={form.status === 'published'}
+          />
           <TextInput label="Instagram" value={form.instagram_url} onChange={(event) => setField('instagram_url', event.target.value)} />
           <TextInput label="Portada URL/Ruta" value={form.cover_image} onChange={(event) => setField('cover_image', event.target.value)} required />
           <TextInput label="Perfil URL/Ruta" value={form.profile_image} onChange={(event) => setField('profile_image', event.target.value)} required />

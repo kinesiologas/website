@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/create-spa-404.mjs",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
@@ -16,7 +17,8 @@
     "react-dom": "^19.0.0",
     "react-photo-view": "^1.2.7",
     "react-router-dom": "^7.0.0",
-    "swiper": "^11.1.0"
+    "swiper": "^11.1.0",
+    "tus-js-client": "^4.3.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

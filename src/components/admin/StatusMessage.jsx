@@ -9,5 +9,13 @@ export function StatusMessage({ message, type = 'info' }) {
     success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100',
   };
 
-  return <p className={`rounded-md border p-3 text-sm leading-6 ${styles[type] ?? styles.info}`}>{message}</p>;
+  return (
+    <p
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
+      className={`rounded-md border p-3 text-sm leading-6 ${styles[type] ?? styles.info}`}
+      role={type === 'error' ? 'alert' : 'status'}
+    >
+      {message}
+    </p>
+  );
 }

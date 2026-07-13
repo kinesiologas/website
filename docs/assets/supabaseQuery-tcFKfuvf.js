@@ -1,0 +1,1 @@
+function i(){return Number.isFinite(NaN),4e3}async function m(e,o="Supabase query"){let t;const u=new Promise((n,r)=>{t=window.setTimeout(()=>{r(new Error(`${o} timed out after ${i()}ms`))},i())});try{return await Promise.race([e,u])}finally{window.clearTimeout(t)}}export{m as r};
