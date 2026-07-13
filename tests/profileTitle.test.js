@@ -9,7 +9,18 @@ import {
 test('profile title contains name, cellular number and brand', () => {
   assert.equal(
     getProfileDocumentTitle({ name: 'Valentina', whatsappNumber: '51912345678' }),
-    'Valentina | 51912345678 | KinesiologasS',
+    'Valentina | 912345678 | KinesiologasS',
+  );
+});
+
+test('profile title removes the formatted Peru country prefix only', () => {
+  assert.equal(
+    getProfileDocumentTitle({ name: 'Valentina', whatsapp_number: '+51 912 345 678' }),
+    'Valentina | 912 345 678 | KinesiologasS',
+  );
+  assert.equal(
+    getProfileDocumentTitle({ name: 'Valentina', whatsappNumber: '912345678' }),
+    'Valentina | 912345678 | KinesiologasS',
   );
 });
 
