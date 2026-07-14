@@ -1,5 +1,5 @@
 import { ImagePlus, Save, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   deleteGalleryImage,
   listGalleryImages,
@@ -9,6 +9,7 @@ import {
 } from '../../services/adminService.js';
 import { resolveAssetUrl } from '../../utils/assetUrl.js';
 import { CheckboxInput, SelectInput, TextInput } from './FormControls.jsx';
+import { ModelMediaEditor } from './ModelMediaEditor.jsx';
 import { StatusMessage } from './StatusMessage.jsx';
 
 const emptyModel = {
@@ -17,7 +18,10 @@ const emptyModel = {
   city: '',
   city_id: '',
   country_id: '',
+  cover_desktop_video: null,
   cover_image: '',
+  cover_mobile_image: null,
+  cover_mobile_video: null,
   description: '',
   featured: false,
   id: '',
@@ -40,6 +44,19 @@ const emptyImage = {
   src: '',
 };
 
+const modelMediaFields = [
+  'cover_image',
+  'cover_desktop_video',
+  'cover_mobile_image',
+  'cover_mobile_video',
+  'profile_image',
+];
+const modelMetadataFields = Object.keys(emptyModel).filter((field) => !modelMediaFields.includes(field));
+
+function pickModelMedia(model) {
+  return Object.fromEntries(modelMediaFields.map((field) => [field, model?.[field] ?? null]));
+}
+
 function normalizeModel(model) {
   return {
     ...emptyModel,
@@ -52,13 +69,23 @@ function normalizeModel(model) {
   };
 }
 
-export function ModelEditor({ canManageCatalog, categories, locations, model, onSaved }) {
+export function ModelEditor({
+  canManageCatalog,
+  categories,
+  locations,
+  model,
+  onMediaSaved,
+  onMediaStateChange,
+  onSaved,
+}) {
   const [form, setForm] = useState(() => normalizeModel(model));
   const [gallery, setGallery] = useState([]);
   const [imageForm, setImageForm] = useState(emptyImage);
   const [isSaving, setIsSaving] = useState(false);
   const [isGalleryLoading, setIsGalleryLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [mediaState, setMediaState] = useState({ isDirty: false, isSaving: false });
+  const previousModel = useRef(model);
 
   const provinces = useMemo(
     () => (locations?.provinces ?? []).filter((province) => province.country_id === form.country_id),
@@ -70,9 +97,29 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
   );
 
   useEffect(() => {
-    setForm(normalizeModel(model));
-    setFeedback({ type: '', message: '' });
+    const previous = normalizeModel(previousModel.current);
+    const next = normalizeModel(model);
+    const onlyMediaChanged = previous.id && previous.id === next.id
+      && modelMetadataFields.every((field) => Object.is(previous[field], next[field]));
+
+    previousModel.current = model;
+
+    if (onlyMediaChanged) {
+      setForm((current) => normalizeModel({ ...current, ...pickModelMedia(next) }));
+    } else {
+      setForm(next);
+      setFeedback({ type: '', message: '' });
+    }
   }, [model]);
+
+  const handleMediaStateChange = useCallback((nextState) => {
+    setMediaState((current) => (
+      current.isDirty === nextState.isDirty && current.isSaving === nextState.isSaving
+        ? current
+        : nextState
+    ));
+    onMediaStateChange?.(nextState);
+  }, [onMediaStateChange]);
 
   useEffect(() => {
     let isMounted = true;
@@ -139,12 +186,25 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (form.status === 'published' && !form.whatsapp_number?.trim()) {
-      setFeedback({
-        type: 'error',
-        message: 'El celular/WhatsApp es obligatorio para publicar una modelo.',
-      });
+    if (mediaState.isSaving) {
+      setFeedback({ type: 'info', message: 'Espera a que termine la carga de medios.' });
       return;
+    }
+
+    if (form.status === 'published') {
+      const missingRequirements = [];
+
+      if (!form.whatsapp_number?.trim()) missingRequirements.push('celular/WhatsApp');
+      if (!form.cover_image?.trim()) missingRequirements.push('portada de escritorio');
+      if (!form.profile_image?.trim()) missingRequirements.push('foto de perfil');
+
+      if (missingRequirements.length) {
+        setFeedback({
+          type: 'error',
+          message: `Para publicar faltan: ${missingRequirements.join(', ')}.`,
+        });
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -152,7 +212,7 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
 
     try {
       const savedModel = await saveModel(form);
-      setForm(normalizeModel(savedModel));
+      setForm((current) => normalizeModel({ ...savedModel, ...pickModelMedia(current) }));
       onSaved?.(savedModel);
       setFeedback({ type: 'success', message: 'Modelo guardado.' });
     } catch (error) {
@@ -193,9 +253,15 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
     }
   }
 
+  async function handleMediaSaved(savedMedia) {
+    setForm((current) => normalizeModel({ ...current, ...savedMedia }));
+    await onMediaSaved?.(form.id, savedMedia);
+  }
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <form className="rounded-lg border border-slate-800 bg-[#0f131a] p-5" onSubmit={handleSubmit}>
+    <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <form className="rounded-lg border border-slate-800 bg-[#0f131a] p-5" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <TextInput label="Nombre" value={form.name} onChange={(event) => setField('name', event.target.value)} required />
           <TextInput label="Slug" value={form.slug} onChange={(event) => setField('slug', event.target.value)} required />
@@ -294,8 +360,6 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
             required={form.status === 'published'}
           />
           <TextInput label="Instagram" value={form.instagram_url} onChange={(event) => setField('instagram_url', event.target.value)} />
-          <TextInput label="Portada URL/Ruta" value={form.cover_image} onChange={(event) => setField('cover_image', event.target.value)} required />
-          <TextInput label="Perfil URL/Ruta" value={form.profile_image} onChange={(event) => setField('profile_image', event.target.value)} required />
           <div className="md:col-span-2">
             <TextInput
               label="Descripcion breve"
@@ -321,16 +385,16 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
           <button
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || mediaState.isSaving}
           >
             <Save aria-hidden="true" size={18} />
             {isSaving ? 'Guardando...' : 'Guardar modelo'}
           </button>
           <StatusMessage message={feedback.message} type={feedback.type} />
         </div>
-      </form>
+        </form>
 
-      <aside className="rounded-lg border border-slate-800 bg-[#0f131a] p-5">
+        <aside className="rounded-lg border border-slate-800 bg-[#0f131a] p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-white">Galeria</h2>
@@ -387,7 +451,15 @@ export function ModelEditor({ canManageCatalog, categories, locations, model, on
             La galeria se habilita cuando el modelo tiene slug guardado.
           </p>
         )}
-      </aside>
+        </aside>
+      </div>
+
+      <ModelMediaEditor
+        disabled={isSaving}
+        model={form}
+        onSaved={handleMediaSaved}
+        onStateChange={handleMediaStateChange}
+      />
     </div>
   );
 }

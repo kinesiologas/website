@@ -164,6 +164,7 @@ export function AdminLayout() {
               </Link>
               <button
                 className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-800 text-slate-300 transition hover:border-rose-500 hover:text-white"
+                data-admin-navigation
                 type="button"
                 aria-label="Cerrar sesion"
                 title="Cerrar sesion"

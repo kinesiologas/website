@@ -70,6 +70,12 @@ export default function AdminProfile() {
     setAccountForm((current) => ({ ...current, [name]: value }));
   }
 
+  function handleMediaSaved(modelId, media) {
+    setModel((current) => (
+      current?.id === modelId ? { ...current, ...media } : current
+    ));
+  }
+
   async function handleAccountSubmit(event) {
     event.preventDefault();
     setFeedback({ type: '', message: '' });
@@ -116,6 +122,7 @@ export default function AdminProfile() {
                   categories={categories}
                   locations={locations}
                   model={model}
+                  onMediaSaved={handleMediaSaved}
                   onSaved={(savedModel) => setModel(savedModel)}
                 />
                 <ModelCalendarSettings modelId={model.id} />

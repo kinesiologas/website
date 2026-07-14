@@ -1,5 +1,5 @@
 import { Archive, Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader.jsx';
 import { ModelEditor } from '../../components/admin/ModelEditor.jsx';
 import { StatusMessage } from '../../components/admin/StatusMessage.jsx';
@@ -17,8 +17,33 @@ export default function AdminModels() {
   const [selectedId, setSelectedId] = useState('');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [isLoading, setIsLoading] = useState(true);
+  const [mediaState, setMediaState] = useState({ isDirty: false, isSaving: false });
 
   const selectedModel = useMemo(() => models.find((model) => model.id === selectedId) ?? null, [models, selectedId]);
+
+  const handleMediaStateChange = useCallback((nextState) => {
+    setMediaState((current) => (
+      current.isDirty === nextState.isDirty && current.isSaving === nextState.isSaving
+        ? current
+        : nextState
+    ));
+  }, []);
+
+  function canDiscardMediaChanges() {
+    if (mediaState.isSaving) {
+      setFeedback({ type: 'info', message: 'Espera a que termine la carga de medios.' });
+      return false;
+    }
+
+    return !mediaState.isDirty || window.confirm(
+      'Hay cambios de medios sin guardar. Si cambias de modelo, se descartarán.',
+    );
+  }
+
+  function selectModel(nextId) {
+    if (nextId === selectedId || !canDiscardMediaChanges()) return;
+    setSelectedId(nextId);
+  }
 
   async function loadData(nextSelectedId = selectedId) {
     setIsLoading(true);
@@ -50,7 +75,15 @@ export default function AdminModels() {
   }, []);
 
   async function handleArchive() {
-    if (!selectedModel) {
+    if (mediaState.isDirty) {
+      setFeedback({
+        type: 'info',
+        message: 'Guarda o deshaz los cambios de medios antes de archivar el modelo.',
+      });
+      return;
+    }
+
+    if (!selectedModel || !canDiscardMediaChanges()) {
       return;
     }
 
@@ -69,18 +102,25 @@ export default function AdminModels() {
     await loadData(savedModel.id);
   }
 
+  function handleMediaSaved(modelId, media) {
+    setModels((current) => current.map((item) => (
+      item.id === modelId ? { ...item, ...media } : item
+    )));
+  }
+
   return (
     <>
       <AdminPageHeader
         eyebrow="Catalogo"
         title="Modelos"
-        description="Crea, edita, publica y archiva perfiles. Las imagenes se guardan como URL o ruta."
+        description="Crea, edita, publica y archiva perfiles con medios separados para escritorio y celular."
         actions={
           <>
             <button
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-rose-600 px-3 text-sm font-semibold text-white transition hover:bg-rose-500"
               type="button"
-              onClick={() => setSelectedId('')}
+              disabled={mediaState.isSaving}
+              onClick={() => selectModel('')}
             >
               <Plus aria-hidden="true" size={17} />
               Nuevo
@@ -88,7 +128,7 @@ export default function AdminModels() {
             <button
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-800 px-3 text-sm font-semibold text-slate-200 transition hover:border-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
-              disabled={!selectedModel || selectedModel.status === 'archived'}
+              disabled={mediaState.isSaving || !selectedModel || selectedModel.status === 'archived'}
               onClick={handleArchive}
             >
               <Archive aria-hidden="true" size={17} />
@@ -113,7 +153,8 @@ export default function AdminModels() {
                     : 'border-slate-800 bg-slate-950 hover:border-slate-700'
                 }`}
                 type="button"
-                onClick={() => setSelectedId(model.id)}
+                disabled={mediaState.isSaving}
+                onClick={() => selectModel(model.id)}
               >
                 <span className="block text-sm font-semibold text-white">{model.name}</span>
                 <span className="mt-1 block text-xs text-slate-500">{model.status} / {model.slug}</span>
@@ -127,6 +168,8 @@ export default function AdminModels() {
           categories={categories}
           locations={locations}
           model={selectedModel}
+          onMediaSaved={handleMediaSaved}
+          onMediaStateChange={handleMediaStateChange}
           onSaved={handleSaved}
         />
       </div>

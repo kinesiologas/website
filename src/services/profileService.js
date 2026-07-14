@@ -1,7 +1,7 @@
 import models from '../data/models.json';
 import { supabase } from '../lib/supabaseClient.js';
 import { runSupabaseQuery } from '../lib/supabaseQuery.js';
-import { resolveAssetUrl } from '../utils/assetUrl.js';
+import { resolveModelMediaUrl } from './modelMediaService.js';
 
 const MODEL_COLUMNS = [
   'id',
@@ -14,6 +14,9 @@ const MODEL_COLUMNS = [
   'short_description',
   'description',
   'cover_image',
+  'cover_mobile_image',
+  'cover_desktop_video',
+  'cover_mobile_video',
   'profile_image',
   'whatsapp_number',
   'instagram_url',
@@ -25,6 +28,9 @@ const modelsTable = import.meta.env.VITE_SUPABASE_MODELS_TABLE || 'models';
 
 function mapProfile(profile) {
   const coverImage = profile.coverImage ?? profile.cover_image;
+  const coverMobileImage = profile.coverMobileImage ?? profile.cover_mobile_image;
+  const coverDesktopVideo = profile.coverDesktopVideo ?? profile.cover_desktop_video;
+  const coverMobileVideo = profile.coverMobileVideo ?? profile.cover_mobile_video;
   const profileImage = profile.profileImage ?? profile.profile_image;
 
   return {
@@ -37,8 +43,11 @@ function mapProfile(profile) {
     featured: Boolean(profile.featured),
     shortDescription: profile.shortDescription ?? profile.short_description ?? '',
     description: profile.description ?? '',
-    coverImage: resolveAssetUrl(coverImage),
-    profileImage: resolveAssetUrl(profileImage),
+    coverImage: coverImage ? resolveModelMediaUrl(coverImage) : '',
+    coverMobileImage: coverMobileImage ? resolveModelMediaUrl(coverMobileImage) : '',
+    coverDesktopVideo: coverDesktopVideo ? resolveModelMediaUrl(coverDesktopVideo) : '',
+    coverMobileVideo: coverMobileVideo ? resolveModelMediaUrl(coverMobileVideo) : '',
+    profileImage: profileImage ? resolveModelMediaUrl(profileImage) : '',
     whatsappNumber: profile.whatsappNumber ?? profile.whatsapp_number ?? '',
     instagramUrl: profile.instagramUrl ?? profile.instagram_url ?? '',
   };

@@ -118,15 +118,20 @@ model: edicion del modelo vinculado, calendario y reservas propias
 user: cuenta, favoritos y solicitudes de reserva desde el perfil publico
 ```
 
-El editor de modelos guarda rutas o URLs de imagenes. La portada de Inicio se administra por separado en `/admin/portada`: sus imagenes y videos se suben directamente al bucket publico `site-media` de Supabase Storage, con escritura exclusiva para super administradores.
+El editor de modelos permite cargar una portada y un video para escritorio, una portada y un video para celular, y la foto publica de perfil. Los archivos se guardan en los buckets publicos `model-images` y `model-videos` de Supabase Storage; una modelo solo puede gestionar sus propios archivos y los administradores unicamente los modelos de sus territorios. Las rutas antiguas de R2 siguen siendo compatibles hasta que cada medio se reemplace.
+
+La portada de Inicio se administra por separado en `/admin/portada`: sus imagenes y videos se suben directamente al bucket publico `site-media` de Supabase Storage, con escritura exclusiva para super administradores.
 
 Para una base de datos ya existente, aplicar una sola vez la migracion incremental antes de desplegar el frontend:
 
 ```text
 supabase/migrations/20260713_site_media.sql
+supabase/migrations/20260713_model_profile_media.sql
 ```
 
 La portada admite una imagen y un video opcional para escritorio, mas una imagen y un video opcional para celular. Si no hay video compatible se usa la imagen correspondiente; si tampoco existe una imagen configurada se usa `public/images/portada.png`.
+
+En los perfiles de modelos, las imagenes deben pesar menos de 1 MiB y los videos menos de 10 MiB. Primero se guarda el modelo como borrador para obtener su identificador; luego se habilita la carga de medios. No se puede publicar sin portada de escritorio, foto publica de perfil y celular/WhatsApp.
 
 Los permisos territoriales se asignan desde `/admin/usuarios` a cuentas con rol `admin`. Cada asignacion puede cubrir un pais completo o una provincia especifica.
 

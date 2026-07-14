@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient.js';
+import { resolveModelMediaUrl } from './modelMediaService.js';
 import { resolveAssetUrl } from '../utils/assetUrl.js';
 
 const MODEL_ADMIN_COLUMNS = [
@@ -12,6 +13,9 @@ const MODEL_ADMIN_COLUMNS = [
   'short_description',
   'description',
   'cover_image',
+  'cover_mobile_image',
+  'cover_desktop_video',
+  'cover_mobile_video',
   'profile_image',
   'whatsapp_number',
   'instagram_url',
@@ -35,6 +39,9 @@ const PUBLIC_MODEL_COLUMNS = [
   'short_description',
   'description',
   'cover_image',
+  'cover_mobile_image',
+  'cover_desktop_video',
+  'cover_mobile_video',
   'profile_image',
   'whatsapp_number',
   'instagram_url',
@@ -114,15 +121,18 @@ function mapPublicModel(profile) {
     featured: Boolean(profile.featured),
     shortDescription: profile.short_description ?? '',
     description: profile.description ?? '',
-    coverImage: resolveAssetUrl(profile.cover_image),
-    profileImage: resolveAssetUrl(profile.profile_image),
+    coverImage: resolveModelMediaUrl(profile.cover_image),
+    coverMobileImage: resolveModelMediaUrl(profile.cover_mobile_image),
+    coverDesktopVideo: resolveModelMediaUrl(profile.cover_desktop_video),
+    coverMobileVideo: resolveModelMediaUrl(profile.cover_mobile_video),
+    profileImage: resolveModelMediaUrl(profile.profile_image),
     whatsappNumber: profile.whatsapp_number ?? '',
     instagramUrl: profile.instagram_url ?? '',
   };
 }
 
-function toModelPayload(model) {
-  return {
+function toModelPayload(model, { includeMedia = false } = {}) {
+  const payload = {
     slug: slugify(model.slug || model.name),
     name: model.name?.trim() ?? '',
     city: model.city?.trim() ?? '',
@@ -131,8 +141,6 @@ function toModelPayload(model) {
     featured: Boolean(model.featured),
     short_description: model.short_description?.trim() ?? '',
     description: model.description?.trim() ?? '',
-    cover_image: model.cover_image?.trim() ?? '',
-    profile_image: model.profile_image?.trim() ?? '',
     whatsapp_number: model.whatsapp_number?.trim() ?? '',
     instagram_url: model.instagram_url?.trim() ?? '',
     sort_order: toSortOrder(model.sort_order),
@@ -141,6 +149,19 @@ function toModelPayload(model) {
     province_id: model.province_id || null,
     city_id: model.city_id || null,
     updated_at: new Date().toISOString(),
+  };
+
+  if (!includeMedia) {
+    return payload;
+  }
+
+  return {
+    ...payload,
+    cover_image: model.cover_image?.trim() ?? '',
+    cover_mobile_image: model.cover_mobile_image?.trim() || null,
+    cover_desktop_video: model.cover_desktop_video?.trim() || null,
+    cover_mobile_video: model.cover_mobile_video?.trim() || null,
+    profile_image: model.profile_image?.trim() ?? '',
   };
 }
 
@@ -169,7 +190,7 @@ export async function listModels({ modelId } = {}) {
 export async function saveModel(model) {
   ensureSupabase();
 
-  const payload = toModelPayload(model);
+  const payload = toModelPayload(model, { includeMedia: !model.id });
 
   if (model.id) {
     const { data, error } = await supabase

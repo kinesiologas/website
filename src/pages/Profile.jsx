@@ -5,6 +5,7 @@ import { WhatsAppButton } from '../components/contact/WhatsAppButton.jsx';
 import { GalleryGrid } from '../components/gallery/GalleryGrid.jsx';
 import { SectionHeader } from '../components/common/SectionHeader.jsx';
 import { PublicAvailabilityCalendar } from '../components/availability/PublicAvailabilityCalendar.jsx';
+import { ProfileHeroMedia } from '../components/profile/ProfileHeroMedia.jsx';
 import { getGalleryByModelSlug } from '../services/galleryService.js';
 import { getProfileBySlug } from '../services/profileService.js';
 import {
@@ -76,11 +77,7 @@ export default function Profile() {
   return (
     <main className="min-h-screen">
       <section className="relative min-h-[72vh] overflow-hidden px-5 pb-10 pt-28 md:px-8 md:pb-16">
-        <img
-          className="absolute inset-0 h-full w-full object-cover opacity-68"
-          src={profile.coverImage}
-          alt={`Portada de ${profile.name}`}
-        />
+        <ProfileHeroMedia profile={profile} />
         <div className="absolute inset-0 bg-gradient-to-t from-[#090909] via-[#090909]/76 to-[#090909]/35" />
         <div className="relative mx-auto flex min-h-[58vh] max-w-7xl items-end">
           <div className="grid w-full gap-8 md:grid-cols-[220px_1fr] md:items-end">
