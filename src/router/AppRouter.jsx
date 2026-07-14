@@ -1,5 +1,13 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Navigate,
+  Outlet,
+  Route,
+  RouterProvider,
+  useParams,
+} from 'react-router-dom';
 import { RequireAuth } from '../auth/RequireAuth.jsx';
 import { ROLES } from '../constants/roles.js';
 import { AdminLayout } from '../layout/AdminLayout.jsx';
@@ -38,45 +46,51 @@ function LegacyProfileRedirect() {
   return <Navigate replace to={`/${slug}`} />;
 }
 
-export function AppRouter() {
+function SuspenseLayout() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<RouteLoader />}>
-        <Routes>
-          <Route path="login" element={<Login />} />
-          <Route path="auth/callback" element={<AuthCallback />} />
-
-          <Route element={<RequireAuth allowedRoles={allRoles} />}>
-            <Route path="admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route element={<RequireAuth allowedRoles={contentRoles} />}>
-                <Route path="modelos" element={<AdminModels />} />
-                <Route path="ubicaciones" element={<AdminLocations />} />
-                <Route path="categorias" element={<AdminCategories />} />
-              </Route>
-              <Route element={<RequireAuth allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MODEL]} />}>
-                <Route path="reservas" element={<AdminBookings />} />
-              </Route>
-              <Route element={<RequireAuth allowedRoles={[ROLES.SUPER_ADMIN]} />}>
-                <Route path="usuarios" element={<AdminUsers />} />
-                <Route path="portada" element={<AdminHomeHero />} />
-              </Route>
-              <Route path="mi-perfil" element={<AdminProfile />} />
-              <Route element={<RequireAuth allowedRoles={[ROLES.USER]} />}>
-                <Route path="favoritos" element={<AdminFavorites />} />
-              </Route>
-            </Route>
-          </Route>
-
-          <Route element={<MainLayout />}>
-            <Route index element={<Home />} />
-            <Route path="modelos" element={<Models />} />
-            <Route path="perfil/:slug" element={<LegacyProfileRedirect />} />
-            <Route path="contacto" element={<Contact />} />
-            <Route path=":slug" element={<Profile />} />
-          </Route>
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <Suspense fallback={<RouteLoader />}>
+      <Outlet />
+    </Suspense>
   );
+}
+
+const router = createBrowserRouter(createRoutesFromElements(
+  <Route element={<SuspenseLayout />}>
+    <Route path="login" element={<Login />} />
+    <Route path="auth/callback" element={<AuthCallback />} />
+
+    <Route element={<RequireAuth allowedRoles={allRoles} />}>
+      <Route path="admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route element={<RequireAuth allowedRoles={contentRoles} />}>
+          <Route path="modelos" element={<AdminModels />} />
+          <Route path="ubicaciones" element={<AdminLocations />} />
+          <Route path="categorias" element={<AdminCategories />} />
+        </Route>
+        <Route element={<RequireAuth allowedRoles={[ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MODEL]} />}>
+          <Route path="reservas" element={<AdminBookings />} />
+        </Route>
+        <Route element={<RequireAuth allowedRoles={[ROLES.SUPER_ADMIN]} />}>
+          <Route path="usuarios" element={<AdminUsers />} />
+          <Route path="portada" element={<AdminHomeHero />} />
+        </Route>
+        <Route path="mi-perfil" element={<AdminProfile />} />
+        <Route element={<RequireAuth allowedRoles={[ROLES.USER]} />}>
+          <Route path="favoritos" element={<AdminFavorites />} />
+        </Route>
+      </Route>
+    </Route>
+
+    <Route element={<MainLayout />}>
+      <Route index element={<Home />} />
+      <Route path="modelos" element={<Models />} />
+      <Route path="perfil/:slug" element={<LegacyProfileRedirect />} />
+      <Route path="contacto" element={<Contact />} />
+      <Route path=":slug" element={<Profile />} />
+    </Route>
+  </Route>,
+));
+
+export function AppRouter() {
+  return <RouterProvider router={router} />;
 }

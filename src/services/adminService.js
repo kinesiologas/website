@@ -237,76 +237,28 @@ export async function archiveModel(modelId) {
   }
 }
 
-export async function listGalleryImages(modelSlug) {
+export async function listGalleryImages({ modelId, modelSlug } = {}) {
   ensureSupabase();
 
-  if (!modelSlug) {
+  if (!modelId && !modelSlug) {
     return [];
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('gallery_images')
     .select('id, model_slug, src, alt, sort_order, created_at')
-    .eq('model_slug', modelSlug)
     .order('sort_order', { ascending: true, nullsFirst: false })
     .order('id', { ascending: true });
+
+  query = modelId ? query.eq('model_id', modelId) : query.eq('model_slug', modelSlug);
+
+  const { data, error } = await query;
 
   if (error) {
     throw error;
   }
 
   return data ?? [];
-}
-
-export async function saveGalleryImage(image) {
-  ensureSupabase();
-
-  const payload = {
-    model_slug: image.model_slug,
-    src: image.src?.trim() ?? '',
-    alt: image.alt?.trim() ?? '',
-    sort_order: toSortOrder(image.sort_order),
-  };
-
-  if (image.id) {
-    const { data, error } = await supabase
-      .from('gallery_images')
-      .update(payload)
-      .eq('id', image.id)
-      .select('id, model_slug, src, alt, sort_order, created_at')
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  }
-
-  const { data, error } = await supabase
-    .from('gallery_images')
-    .insert({
-      ...payload,
-      id: makeId('image'),
-    })
-    .select('id, model_slug, src, alt, sort_order, created_at')
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
-}
-
-export async function deleteGalleryImage(imageId) {
-  ensureSupabase();
-
-  const { error } = await supabase.from('gallery_images').delete().eq('id', imageId);
-
-  if (error) {
-    throw error;
-  }
 }
 
 export async function listCategoriesAdmin() {

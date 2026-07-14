@@ -55,15 +55,13 @@ export async function getGalleryByModelSlug(modelSlug) {
       throw error;
     }
 
-    return data?.length
-      ? {
-          modelSlug,
-          images: data.map((image) => mapImage(image, modelSlug)),
-        }
-      : getLocalGalleryByModelSlug(modelSlug);
+    return {
+      modelSlug,
+      images: (data ?? []).map((image) => mapImage(image, modelSlug)),
+    };
   } catch (error) {
-    console.warn(`Supabase gallery "${modelSlug}" unavailable. Using local data.`, error);
-    return getLocalGalleryByModelSlug(modelSlug);
+    console.warn(`Supabase gallery "${modelSlug}" unavailable. Returning an empty gallery.`, error);
+    return { modelSlug, images: [] };
   }
 }
 
@@ -87,9 +85,9 @@ export async function getGalleryPreviewImages(limit = 6) {
       throw error;
     }
 
-    return data?.length ? data.map((image) => mapImage(image)) : getLocalGalleryPreviewImages(limit);
+    return (data ?? []).map((image) => mapImage(image));
   } catch (error) {
-    console.warn('Supabase gallery preview unavailable. Using local data.', error);
-    return getLocalGalleryPreviewImages(limit);
+    console.warn('Supabase gallery preview unavailable. Returning no images.', error);
+    return [];
   }
 }

@@ -11,26 +11,62 @@ import { StatusMessage } from './StatusMessage.jsx';
 
 const slotPresentation = {
   cover_image: {
-    description: 'Imagen principal y respaldo del video en pantallas de 768 px o más.',
+    action: 'imagen de escritorio',
+    description: 'Imagen principal y respaldo del vídeo en pantallas de 768 px o más.',
+    emptyLabel: 'Sin imagen de escritorio',
     required: true,
+    title: 'Imagen',
   },
   cover_desktop_video: {
-    description: 'Video opcional para escritorio. Se reproduce silenciado y en bucle.',
+    action: 'vídeo de escritorio',
+    description: 'Vídeo opcional para escritorio. Se reproduce silenciado y en bucle.',
+    emptyLabel: 'Sin vídeo de escritorio',
     required: false,
+    title: 'Vídeo',
   },
   cover_mobile_image: {
+    action: 'imagen para celular',
     description: 'Imagen opcional para celular. Si falta, se usa la portada de escritorio.',
+    emptyLabel: 'Sin imagen para celular',
     required: false,
+    title: 'Imagen',
   },
   cover_mobile_video: {
-    description: 'Video opcional para pantallas menores de 768 px.',
+    action: 'vídeo para celular',
+    description: 'Vídeo opcional para pantallas menores de 768 px.',
+    emptyLabel: 'Sin vídeo para celular',
     required: false,
+    title: 'Vídeo',
   },
   profile_image: {
+    action: 'foto de perfil',
     description: 'Foto pública utilizada en el perfil y en las tarjetas del catálogo.',
+    emptyLabel: 'Sin foto de perfil',
     required: true,
+    title: 'Foto de perfil',
   },
 };
+
+const mediaGroups = [
+  {
+    description: 'Se muestra en computadoras y también sirve de respaldo si el vídeo no carga.',
+    id: 'desktop',
+    slots: ['cover_image', 'cover_desktop_video'],
+    title: 'Portada para escritorio',
+  },
+  {
+    description: 'Se usa en pantallas menores de 768 px. Si está vacía, se utiliza la versión de escritorio.',
+    id: 'mobile',
+    slots: ['cover_mobile_image', 'cover_mobile_video'],
+    title: 'Portada para celular',
+  },
+  {
+    description: 'Es la foto que identifica a la modelo en su perfil y en el catálogo.',
+    id: 'profile',
+    slots: ['profile_image'],
+    title: 'Foto pública de perfil',
+  },
+];
 
 function createEmptyDraft() {
   return Object.fromEntries(MODEL_MEDIA_SLOT_KEYS.map((slot) => [slot, { file: null, remove: false }]));
@@ -40,11 +76,15 @@ function formatLimit(maxBytes) {
   return maxBytes < 2 * 1024 * 1024 ? 'menos de 1 MiB' : 'menos de 10 MiB';
 }
 
-function MediaPreview({ kind, poster, src }) {
+function MediaPreview({ emptyLabel, kind, poster, src }) {
   if (!src) {
+    const Icon = kind === 'video' ? Video : ImageIcon;
+
     return (
-      <div className="flex h-full min-h-44 items-center justify-center bg-slate-950 text-sm text-slate-500">
-        Sin archivo
+      <div className="flex h-44 flex-col items-center justify-center gap-2 border-t border-slate-800 bg-slate-950 px-4 text-center">
+        <Icon aria-hidden="true" className="text-slate-700" size={28} />
+        <span className="text-sm font-medium text-slate-400">{emptyLabel}</span>
+        <span className="text-xs text-slate-600">Usa el botón de subida situado arriba.</span>
       </div>
     );
   }
@@ -52,7 +92,7 @@ function MediaPreview({ kind, poster, src }) {
   if (kind === 'video') {
     return (
       <video
-        className="h-44 w-full bg-black object-cover"
+        className="h-44 w-full border-t border-slate-800 bg-black object-cover"
         controls
         muted
         playsInline
@@ -63,7 +103,7 @@ function MediaPreview({ kind, poster, src }) {
     );
   }
 
-  return <img className="h-44 w-full bg-slate-950 object-cover" src={src} alt="Previsualización del medio" />;
+  return <img className="h-44 w-full border-t border-slate-800 bg-slate-950 object-cover" src={src} alt="Previsualización del medio" />;
 }
 
 function SlotCard({ currentValue, draft, isSaving, objectUrl, onCancel, onFile, onRemove, progress, slot, poster }) {
@@ -73,25 +113,73 @@ function SlotCard({ currentValue, draft, isSaving, objectUrl, onCancel, onFile, 
   const hasPendingChange = Boolean(draft.file || draft.remove);
   const canRemove = !presentation.required && !draft.remove && Boolean(draft.file || currentValue);
   const previewUrl = draft.remove ? '' : objectUrl || resolveModelMediaUrl(currentValue);
+  const actionLabel = `${draft.file || currentValue ? 'Cambiar' : 'Subir'} ${presentation.action}`;
 
   return (
     <article className="overflow-hidden rounded-lg border border-slate-800 bg-[#0f131a]">
-      <MediaPreview kind={config.kind} poster={poster} src={previewUrl} />
-
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-white">{config.label}</h3>
+              <h4 className="text-base font-semibold text-white">{presentation.title}</h4>
               {presentation.required ? (
                 <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rose-300">
                   Obligatoria
                 </span>
-              ) : null}
+              ) : (
+                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  Opcional
+                </span>
+              )}
             </div>
             <p className="mt-2 text-xs leading-5 text-slate-400">{presentation.description}</p>
           </div>
           <Icon aria-hidden="true" className="shrink-0 text-rose-400" size={20} />
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <label className={`inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white transition hover:bg-rose-500 ${isSaving ? 'pointer-events-none opacity-60' : ''}`}>
+            <Upload aria-hidden="true" size={15} />
+            {actionLabel}
+            <input
+              accept={config.accept}
+              aria-label={actionLabel}
+              className="sr-only"
+              disabled={isSaving}
+              type="file"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (file) onFile(file);
+              }}
+            />
+          </label>
+
+          {canRemove ? (
+            <button
+              aria-label={`Eliminar ${presentation.action}`}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700 px-3 text-xs font-semibold text-slate-300 transition hover:border-rose-500 hover:text-white disabled:opacity-60"
+              disabled={isSaving}
+              type="button"
+              onClick={onRemove}
+            >
+              <Trash2 aria-hidden="true" size={15} />
+              Eliminar
+            </button>
+          ) : null}
+
+          {hasPendingChange ? (
+            <button
+              aria-label={`Deshacer cambios de ${presentation.action}`}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700 px-3 text-xs font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-60"
+              disabled={isSaving}
+              type="button"
+              onClick={onCancel}
+            >
+              <RotateCcw aria-hidden="true" size={15} />
+              Deshacer
+            </button>
+          ) : null}
         </div>
 
         <p className="mt-3 text-xs text-slate-500">
@@ -99,7 +187,7 @@ function SlotCard({ currentValue, draft, isSaving, objectUrl, onCancel, onFile, 
         </p>
 
         {draft.file ? (
-          <p className="mt-2 truncate text-xs text-emerald-300">Nuevo: {draft.file.name}</p>
+          <p className="mt-2 truncate text-xs text-emerald-300">Nuevo archivo: {draft.file.name}</p>
         ) : draft.remove ? (
           <p className="mt-2 text-xs text-amber-300">Se eliminará al guardar.</p>
         ) : null}
@@ -115,49 +203,14 @@ function SlotCard({ currentValue, draft, isSaving, objectUrl, onCancel, onFile, 
             </div>
           </div>
         ) : null}
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <label className={`inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white transition hover:bg-rose-500 ${isSaving ? 'pointer-events-none opacity-60' : ''}`}>
-            <Upload aria-hidden="true" size={15} />
-            {currentValue || draft.file ? 'Reemplazar' : 'Seleccionar'}
-            <input
-              accept={config.accept}
-              className="sr-only"
-              disabled={isSaving}
-              type="file"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (file) onFile(file);
-              }}
-            />
-          </label>
-
-          {canRemove ? (
-            <button
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700 px-3 text-xs font-semibold text-slate-300 transition hover:border-rose-500 hover:text-white disabled:opacity-60"
-              disabled={isSaving}
-              type="button"
-              onClick={onRemove}
-            >
-              <Trash2 aria-hidden="true" size={15} />
-              Eliminar
-            </button>
-          ) : null}
-
-          {hasPendingChange ? (
-            <button
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700 px-3 text-xs font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-60"
-              disabled={isSaving}
-              type="button"
-              onClick={onCancel}
-            >
-              <RotateCcw aria-hidden="true" size={15} />
-              Deshacer
-            </button>
-          ) : null}
-        </div>
       </div>
+
+      <MediaPreview
+        emptyLabel={presentation.emptyLabel}
+        kind={config.kind}
+        poster={poster}
+        src={previewUrl}
+      />
     </article>
   );
 }
@@ -201,51 +254,8 @@ export function ModelMediaEditor({ disabled = false, model, onSaved, onStateChan
   }, [draft]);
 
   useEffect(() => {
-    if (!isDirty && !isSaving) return undefined;
-
-    const preventExit = (event) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-
-    window.addEventListener('beforeunload', preventExit);
-    return () => window.removeEventListener('beforeunload', preventExit);
-  }, [isDirty, isSaving]);
-
-  useEffect(() => {
     onStateChange?.({ isDirty, isSaving });
   }, [isDirty, isSaving, onStateChange]);
-
-  useEffect(() => {
-    if (!isDirty && !isSaving) return undefined;
-
-    const protectAdminNavigation = (event) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const navigationControl = target?.closest('a[href], [data-admin-navigation]');
-      const link = navigationControl?.matches('a[href]') ? navigationControl : null;
-
-      if (!navigationControl || link?.target === '_blank' || link?.hasAttribute('download')) return;
-
-      const canNavigate = !isSaving && window.confirm(
-        'Hay cambios de medios sin guardar. Si sales ahora, se descartarán.',
-      );
-
-      if (!canNavigate) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (isSaving) {
-          setFeedback({
-            message: 'Espera a que termine la carga antes de salir de esta página.',
-            type: 'info',
-          });
-        }
-      }
-    };
-
-    document.addEventListener('click', protectAdminNavigation, true);
-    return () => document.removeEventListener('click', protectAdminNavigation, true);
-  }, [isDirty, isSaving]);
 
   function selectFile(slot, file) {
     try {
@@ -347,9 +357,9 @@ export function ModelMediaEditor({ disabled = false, model, onSaved, onStateChan
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-400">Medios públicos</p>
-          <h2 className="mt-2 text-xl font-semibold text-white">Portada y foto de perfil</h2>
+          <h2 className="mt-2 text-xl font-semibold text-white">Fotos y vídeos del perfil</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Configura medios distintos para escritorio y celular. Los cinco cambios se publican juntos.
+            Cada bloque indica dónde se mostrará el archivo. Puedes subir imágenes y vídeos distintos para escritorio y celular.
           </p>
         </div>
         <button
@@ -359,13 +369,13 @@ export function ModelMediaEditor({ disabled = false, model, onSaved, onStateChan
           onClick={handleSave}
         >
           <Save aria-hidden="true" size={17} />
-          {isSaving ? 'Guardando medios...' : 'Guardar medios'}
+          {isSaving ? 'Guardando medios...' : 'Guardar todos los medios'}
         </button>
       </div>
 
       {!model?.id ? (
         <StatusMessage
-          message="Guarda primero el modelo como borrador para habilitar la carga de portada y foto de perfil."
+          message="Guarda primero el modelo como borrador para habilitar la carga de imágenes y vídeos."
           type="info"
         />
       ) : null}
@@ -373,21 +383,37 @@ export function ModelMediaEditor({ disabled = false, model, onSaved, onStateChan
         <StatusMessage message={feedback.message} type={feedback.type} />
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {MODEL_MEDIA_SLOT_KEYS.map((slot) => (
-          <SlotCard
-            currentValue={currentMedia[slot]}
-            draft={draft[slot]}
-            isSaving={disabled || isSaving || !model?.id}
-            key={slot}
-            objectUrl={objectUrls[slot]}
-            poster={slot === 'cover_mobile_video' ? mobilePoster : slot === 'cover_desktop_video' ? desktopPoster : ''}
-            progress={progress[slot]}
-            slot={slot}
-            onCancel={() => cancelSlot(slot)}
-            onFile={(file) => selectFile(slot, file)}
-            onRemove={() => removeSlot(slot)}
-          />
+      <div className="mt-6 space-y-7">
+        {mediaGroups.map((group, index) => (
+          <section aria-labelledby={`model-media-${group.id}`} key={group.id}>
+            <div className="mb-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {index + 1}. {group.id === 'profile' ? 'Identidad' : 'Portada del perfil'}
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-white" id={`model-media-${group.id}`}>
+                {group.title}
+              </h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">{group.description}</p>
+            </div>
+
+            <div className={`grid gap-4 md:grid-cols-2 ${group.id === 'profile' ? 'max-w-xl' : ''}`}>
+              {group.slots.map((slot) => (
+                <SlotCard
+                  currentValue={currentMedia[slot]}
+                  draft={draft[slot]}
+                  isSaving={disabled || isSaving || !model?.id}
+                  key={slot}
+                  objectUrl={objectUrls[slot]}
+                  poster={slot === 'cover_mobile_video' ? mobilePoster : slot === 'cover_desktop_video' ? desktopPoster : ''}
+                  progress={progress[slot]}
+                  slot={slot}
+                  onCancel={() => cancelSlot(slot)}
+                  onFile={(file) => selectFile(slot, file)}
+                  onRemove={() => removeSlot(slot)}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     </section>

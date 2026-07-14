@@ -28,7 +28,7 @@ const navItems = [
     end: true,
   },
   {
-    label: 'Portada',
+    label: 'Portada del inicio',
     to: '/admin/portada',
     icon: ImageIcon,
     roles: [ROLES.SUPER_ADMIN],
@@ -65,6 +65,7 @@ const navItems = [
   },
   {
     label: 'Mi perfil',
+    modelLabel: 'Mi perfil público',
     to: '/admin/mi-perfil',
     icon: User,
     roles: [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.MODEL, ROLES.USER],
@@ -85,6 +86,7 @@ function SidebarNav({ onNavigate }) {
     <nav className="mt-8 flex flex-col gap-1" aria-label="Administracion">
       {visibleItems.map((item) => {
         const Icon = item.icon;
+        const label = profile?.role === ROLES.MODEL && item.modelLabel ? item.modelLabel : item.label;
 
         return (
           <NavLink
@@ -102,7 +104,7 @@ function SidebarNav({ onNavigate }) {
           >
             <span className="flex items-center gap-3">
               <Icon aria-hidden="true" size={18} />
-              {item.label}
+              {label}
             </span>
             <ChevronRight aria-hidden="true" size={16} />
           </NavLink>

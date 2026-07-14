@@ -87,6 +87,21 @@ images/models/isabella/gallery-01.jpg
 
 Si `VITE_R2_PUBLIC_URL` queda vacio, las imagenes se cargan desde `public/images/`. Si se configura, cualquier ruta relativa de las tablas o JSON se resuelve contra R2.
 
+9. Para administrar las galerias desde el panel, crear un token de API de R2 limitado al bucket de imagenes con permisos de lectura y escritura. Guardar sus datos exclusivamente como secretos de la Edge Function y desplegarla:
+
+En un proyecto Supabase ya existente, ejecutar primero `supabase/migrations/20260714_gallery_r2_media.sql` desde SQL Editor. En una instalacion nueva, estos cambios ya estan incluidos en `supabase/schema.sql`.
+
+```bash
+supabase secrets set R2_ACCOUNT_ID=...
+supabase secrets set R2_ACCESS_KEY_ID=...
+supabase secrets set R2_SECRET_ACCESS_KEY=...
+supabase secrets set R2_BUCKET_NAME=...
+supabase secrets set R2_PUBLIC_URL=https://media.example.com
+supabase functions deploy gallery-media
+```
+
+Las credenciales de R2 nunca deben guardarse en variables `VITE_*`: esas variables se publican en el navegador.
+
 ## Panel administrativo
 
 El panel privado vive en:
@@ -120,6 +135,8 @@ user: cuenta, favoritos y solicitudes de reserva desde el perfil publico
 
 El editor de modelos permite cargar una portada y un video para escritorio, una portada y un video para celular, y la foto publica de perfil. Los archivos se guardan en los buckets publicos `model-images` y `model-videos` de Supabase Storage; una modelo solo puede gestionar sus propios archivos y los administradores unicamente los modelos de sus territorios. Las rutas antiguas de R2 siguen siendo compatibles hasta que cada medio se reemplace.
 
+La galeria se gestiona por separado dentro del mismo editor. Cada modelo puede subir, reemplazar, ordenar y eliminar sus propias fotos. La Edge Function `gallery-media` valida los permisos, guarda los archivos bajo `models/{modelId}/gallery/` y elimina el objeto de R2 antes de retirar su registro de la galeria. Las escrituras directas a `gallery_images` estan revocadas para evitar que una ruta manipulada borre archivos de otro modelo.
+
 La portada de Inicio se administra por separado en `/admin/portada`: sus imagenes y videos se suben directamente al bucket publico `site-media` de Supabase Storage, con escritura exclusiva para super administradores.
 
 Para una base de datos ya existente, aplicar una sola vez la migracion incremental antes de desplegar el frontend:
@@ -127,6 +144,7 @@ Para una base de datos ya existente, aplicar una sola vez la migracion increment
 ```text
 supabase/migrations/20260713_site_media.sql
 supabase/migrations/20260713_model_profile_media.sql
+supabase/migrations/20260714_gallery_r2_media.sql
 ```
 
 La portada admite una imagen y un video opcional para escritorio, mas una imagen y un video opcional para celular. Si no hay video compatible se usa la imagen correspondiente; si tampoco existe una imagen configurada se usa `public/images/portada.png`.

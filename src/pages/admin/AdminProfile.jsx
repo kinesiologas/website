@@ -92,8 +92,10 @@ export default function AdminProfile() {
     <>
       <AdminPageHeader
         eyebrow="Cuenta"
-        title="Mi perfil"
-        description="Actualiza tus datos de cuenta y revisa el rol asignado."
+        title={profile?.role === ROLES.MODEL ? 'Mi perfil público' : 'Mi perfil'}
+        description={profile?.role === ROLES.MODEL
+          ? 'Actualiza tus datos públicos, galería, portadas, vídeos y disponibilidad desde un solo lugar.'
+          : 'Actualiza tus datos de cuenta y revisa el rol asignado.'}
       />
 
       <StatusMessage message={feedback.message} type={feedback.type} />
@@ -104,7 +106,7 @@ export default function AdminProfile() {
             <TextInput label="Correo" value={profile?.email ?? ''} disabled readOnly />
             <TextInput label="Rol" value={ROLE_LABELS[profile?.role] ?? profile?.role ?? ''} disabled readOnly />
             <TextInput label="Nombre" value={accountForm.fullName} onChange={(event) => setField('fullName', event.target.value)} />
-            <TextInput label="Avatar URL" value={accountForm.avatarUrl} onChange={(event) => setField('avatarUrl', event.target.value)} />
+            <TextInput label="Avatar de la cuenta (solo panel)" value={accountForm.avatarUrl} onChange={(event) => setField('avatarUrl', event.target.value)} />
           </div>
           <button className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-rose-600 px-4 text-sm font-semibold text-white transition hover:bg-rose-500" type="submit">
             <Save aria-hidden="true" size={18} />
